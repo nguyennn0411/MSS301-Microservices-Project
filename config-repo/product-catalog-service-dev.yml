@@ -1,0 +1,9 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: product-catalog-service
+
+ecommerce:
+  service-description: "Manages product information, categories, pricing, and search."

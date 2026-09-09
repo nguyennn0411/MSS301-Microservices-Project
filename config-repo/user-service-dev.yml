@@ -1,0 +1,9 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: user-service
+
+ecommerce:
+  service-description: "Manages customer registration, login, profiles, and addresses."

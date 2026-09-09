@@ -1,0 +1,11 @@
+target/
+.idea/
+*.iml
+.env
+logs/
+data/
+.DS_Store
+*.class
+*.log
+node_modules/
+frontend/order-ui/dist/
