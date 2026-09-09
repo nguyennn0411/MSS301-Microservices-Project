@@ -1,0 +1,1 @@
+-- The MySQL baseline in V1 already contains provider_reference and its index.

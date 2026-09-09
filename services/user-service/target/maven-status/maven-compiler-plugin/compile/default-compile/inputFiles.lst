@@ -1,0 +1,8 @@
+D:\MSS301_FA26\MSS301-Microservices-Project\services\user-service\src\main\java\com\ecommerce\user\api\AddressController.java
+D:\MSS301_FA26\MSS301-Microservices-Project\services\user-service\src\main\java\com\ecommerce\user\application\dto\AddressDTO.java
+D:\MSS301_FA26\MSS301-Microservices-Project\services\user-service\src\main\java\com\ecommerce\user\application\dto\CreateAddressRequest.java
+D:\MSS301_FA26\MSS301-Microservices-Project\services\user-service\src\main\java\com\ecommerce\user\application\service\AddressService.java
+D:\MSS301_FA26\MSS301-Microservices-Project\services\user-service\src\main\java\com\ecommerce\user\domain\model\aggregate\Address.java
+D:\MSS301_FA26\MSS301-Microservices-Project\services\user-service\src\main\java\com\ecommerce\user\domain\model\valueobjects\GeographicAddress.java
+D:\MSS301_FA26\MSS301-Microservices-Project\services\user-service\src\main\java\com\ecommerce\user\domain\repository\AddressRepository.java
+D:\MSS301_FA26\MSS301-Microservices-Project\services\user-service\src\main\java\com\ecommerce\user\UserServiceApplication.java
