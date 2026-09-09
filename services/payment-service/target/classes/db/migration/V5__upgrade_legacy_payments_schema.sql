@@ -1,0 +1,1 @@
+-- The MySQL baseline in V1 already uses the current payments schema.

@@ -1,0 +1,57 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: payment-service
+  config:
+    import: optional:file:./.env[.properties],optional:configserver:http://localhost:8888
+  datasource:
+    url: "${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/ecommerce_payment_service?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}"
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:root}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        type:
+          preferred_uuid_jdbc_type: CHAR
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    ignore-migration-patterns: "*:missing"
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+
+payos:
+  base-url: ${PAYOS_BASE_URL:https://api-merchant.payos.vn}
+  client-id: ${PAYOS_CLIENT_ID:b65ae176-ca2a-4aff-8db0-57d27933f959}
+  api-key: ${PAYOS_API_KEY:457199d8-e125-4473-90c9-33e1bfc5353a}
+  checksum-key: ${PAYOS_CHECKSUM_KEY:4453e34a27b143270faf679520d7b07feac35669204a05bfe1c93eeabd8b474f}
+  return-url: ${PAYOS_RETURN_URL:http://localhost:5173/payment/success}
+  cancel-url: ${PAYOS_CANCEL_URL:http://localhost:5173/payment/cancel}
+  # Set PAYOS_WEBHOOK_URL to a public HTTPS endpoint (for example an ngrok tunnel to Gateway :8080).
+  webhook-url: ${PAYOS_WEBHOOK_URL:http://localhost:8080/api/payments/payos/webhook}
+  auto-confirm-webhook: ${PAYOS_AUTO_CONFIRM_WEBHOOK:true}
+  log-level: ${PAYOS_LOG_LEVEL:NONE}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

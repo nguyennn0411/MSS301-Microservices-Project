@@ -1,0 +1,8 @@
+com\ecommerce\user\domain\model\valueobjects\GeographicAddress.class
+com\ecommerce\user\domain\repository\AddressRepository.class
+com\ecommerce\user\domain\model\aggregate\Address.class
+com\ecommerce\user\api\AddressController.class
+com\ecommerce\user\application\dto\CreateAddressRequest.class
+com\ecommerce\user\application\dto\AddressDTO.class
+com\ecommerce\user\application\service\AddressService.class
+com\ecommerce\user\UserServiceApplication.class
