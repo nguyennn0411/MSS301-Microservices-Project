@@ -1,6 +1,6 @@
 # E-commerce Platform — Maven Multi-module Spring Boot Microservices
 
-Nền tảng thương mại điện tử gồm bốn business service: quản lý người dùng, danh mục sản phẩm, đơn hàng và thanh toán.
+Nền tảng thương mại điện tử cho shop quần áo gồm bốn business service: quản lý người dùng, danh mục sản phẩm, đơn hàng và thanh toán.
 
 ## Kiến trúc
 
