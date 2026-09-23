@@ -1,0 +1,10 @@
+.git
+.idea
+.kilo
+.agents
+.codex
+**/target
+*.iml
+*.log
+.env
+node_modules

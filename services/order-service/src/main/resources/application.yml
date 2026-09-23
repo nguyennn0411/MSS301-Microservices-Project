@@ -37,6 +37,11 @@ payment-service:
 product-service:
   base-url: ${PRODUCT_SERVICE_BASE_URL:http://localhost:8082}
   validation-path: ${PRODUCT_SERVICE_VALIDATION_PATH:/api/v1/products/validation}
+  reservation-path: ${PRODUCT_SERVICE_RESERVATION_PATH:/api/v1/products/inventory/reservations}
+
+user-service:
+  base-url: ${USER_SERVICE_BASE_URL:http://localhost:8081}
+  validation-path: ${USER_SERVICE_VALIDATION_PATH:/api/v1/users/{userId}/validation}
 
 order:
   payment-timeout:
@@ -50,7 +55,14 @@ eureka:
     prefer-ip-address: true
 
 management:
+  health:
+    rabbit:
+      enabled: false
   endpoints:
     web:
       exposure:
         include: health,info,metrics
+
+security:
+  jwt:
+    secret: "${JWT_SECRET:dev-only-secret-key-change-before-production-2026}"

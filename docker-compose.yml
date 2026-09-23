@@ -12,6 +12,8 @@ services:
       dockerfile: infra/config-server/Dockerfile
     ports:
       - "8888:8888"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://eureka-server:8761/eureka/"
     depends_on:
       - eureka-server
     volumes:
@@ -23,6 +25,9 @@ services:
       dockerfile: infra/api-gateway/Dockerfile
     ports:
       - "8080:8080"
+    environment:
+      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://eureka-server:8761/eureka/"
     depends_on:
       - eureka-server
       - config-server
@@ -35,9 +40,13 @@ services:
     ports:
       - "8081:8081"
     environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://eureka-server:8761/eureka/"
       SPRING_DATASOURCE_URL: "jdbc:mysql://host.docker.internal:3306/ecommerce_user_service?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
+      JWT_SECRET: "dev-only-secret-key-change-before-production-2026"
     depends_on:
       - eureka-server
       - config-server
@@ -50,9 +59,13 @@ services:
     ports:
       - "8082:8082"
     environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://eureka-server:8761/eureka/"
       SPRING_DATASOURCE_URL: "jdbc:mysql://host.docker.internal:3306/ecommerce_product_catalog_service?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
+      JWT_SECRET: "dev-only-secret-key-change-before-production-2026"
     depends_on:
       - eureka-server
       - config-server
@@ -67,9 +80,16 @@ services:
     ports:
       - "8084:8084"
     environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://eureka-server:8761/eureka/"
       SPRING_DATASOURCE_URL: "jdbc:mysql://host.docker.internal:3306/ecommerce_order_service?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
+      PRODUCT_SERVICE_BASE_URL: "http://product-catalog-service:8082"
+      USER_SERVICE_BASE_URL: "http://user-service:8081"
+      JWT_SECRET: "dev-only-secret-key-change-before-production-2026"
+      MANAGEMENT_HEALTH_RABBIT_ENABLED: "false"
     depends_on:
       - eureka-server
       - config-server
