@@ -4,12 +4,15 @@ server:
 spring:
   application:
     name: order-service
+
   config:
-    import: optional:configserver:http://localhost:8888
+    import: ${SPRING_CONFIG_IMPORT:optional:configserver:http://localhost:8888}
+
   datasource:
     url: "${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/ecommerce_order_service?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}"
     username: ${SPRING_DATASOURCE_USERNAME:root}
     password: ${SPRING_DATASOURCE_PASSWORD:root}
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -20,10 +23,12 @@ spring:
           time_zone: UTC
         type:
           preferred_uuid_jdbc_type: CHAR
+
   flyway:
     enabled: true
-    locations: classpath:db/migration
+    locations: classpath:db/shop
     baseline-on-migrate: true
+
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
     port: ${SPRING_RABBITMQ_PORT:5672}
@@ -33,19 +38,16 @@ spring:
 payment-service:
   base-url: ${PAYMENT_SERVICE_BASE_URL:http://localhost:8085}
   create-payos-path: ${PAYMENT_SERVICE_CREATE_PAYOS_PATH:/api/payments/payos/create}
+  cancel-payos-path: ${PAYMENT_SERVICE_CANCEL_PAYOS_PATH:/api/payments/payos/{orderCode}/cancel}
 
 product-service:
   base-url: ${PRODUCT_SERVICE_BASE_URL:http://localhost:8082}
   validation-path: ${PRODUCT_SERVICE_VALIDATION_PATH:/api/v1/products/validation}
 
-order:
-  payment-timeout:
-    check-interval-ms: ${ORDER_PAYMENT_TIMEOUT_CHECK_INTERVAL_MS:30000}
-
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
   instance:
     prefer-ip-address: true
 

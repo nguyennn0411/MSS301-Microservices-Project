@@ -28,6 +28,13 @@ public class GlobalExceptionHandler {
         return ApiResponse.error("Request body is missing or invalid JSON");
     }
 
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleValidation(org.springframework.web.bind.MethodArgumentNotValidException exception) {
+        return ApiResponse.error(exception.getBindingResult().getFieldErrors().stream().map(e->e.getField()+": "+e.getDefaultMessage()).collect(java.util.stream.Collectors.joining("; ")));
+    }
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public org.springframework.http.ResponseEntity<ApiResponse<Void>> handleStatus(org.springframework.web.server.ResponseStatusException exception){return org.springframework.http.ResponseEntity.status(exception.getStatusCode()).body(ApiResponse.error(exception.getReason()));}
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception exception) {
