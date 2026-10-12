@@ -3,8 +3,8 @@ package com.ecommerce.order;
 import com.ecommerce.order.client.*;
 import com.ecommerce.order.client.dto.*;
 import com.ecommerce.order.domain.OrderStatus;
-import com.ecommerce.order.dto.*;
-import com.ecommerce.order.repository.OrderRepository;
+import com.ecommerce.order.shop.dto.*;
+import com.ecommerce.order.shop.repository.ShopOrderRepository;
 import com.ecommerce.order.service.*;
 import com.ecommerce.order.shop.ShopSettings;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,7 +19,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
-    @Mock OrderRepository orders;
+    @Mock ShopOrderRepository orders;
     @Mock ProductCatalogClient catalog;
     @Mock PaymentClient payments;
     @Mock OrderCodeGenerator codes;
@@ -43,7 +43,7 @@ class OrderServiceTest {
         assertThat(response.status()).isEqualTo(OrderStatus.PAYMENT_FAILED);verify(orders).save(any());
     }
     @Test void duplicateRequestKeyReturnsSavedOrderWithoutNewPayment(){
-        var request=request("COD");var saved=com.ecommerce.order.domain.OrderEntity.create(123L,userId,"Customer","buyer@example.com","VND");
+        var request=request("COD");var saved=com.ecommerce.order.shop.domain.OrderEntity.create(123L,userId,"Customer","buyer@example.com","VND");
         when(orders.findByUserIdAndRequestKey(userId,request.requestKey())).thenReturn(Optional.of(saved));
         assertThat(service.create(request).id()).isEqualTo(saved.getId());verifyNoInteractions(catalog,payments);
     }

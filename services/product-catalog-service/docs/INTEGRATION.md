@@ -1,6 +1,6 @@
 # Product Catalog Service — Tài liệu tích hợp
 
-> **Owner:** Thành (product-catalog-service)  
+> **Owner:** Long (product-catalog-service)
 > **Đọc bởi:** Phúc (order-service), Frontend  
 > **Base URL (local):** `http://localhost:8082`  
 > **API prefix:** `/api/v1/products`, `/api/v1/categories`
@@ -9,7 +9,7 @@
 
 ## 1. Service này làm gì?
 
-Quản lý **thông tin sản phẩm catalog** (giày):
+Quản lý **thông tin sản phẩm catalog** (quần áo):
 
 - Tên, brand, mô tả, giá (`base_price`), category, status
 - Variants **size / color**
@@ -23,7 +23,7 @@ Quản lý **thông tin sản phẩm catalog** (giày):
 ## 2. Dữ liệu sản phẩm
 
 ```text
-product_id (catalog)     →  "Nike AF1" — chung cho mọi size/màu
+product_id (catalog)     →  "Essential Oversized T-Shirt" — chung cho mọi size/màu
 product_variants         →  size/color có bán (catalog)
 ```
 
@@ -36,10 +36,10 @@ Catalog xác nhận **product tồn tại + ACTIVE + giá đúng**.
 
 | product_id | name | base_price | variants |
 |---|---|---:|---|
-| `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa` | Nike Air Force 1 | 2500000 | 42/Black, 43/Black, 42/White |
-| `bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb` | Adidas Samba | 1800000 | 40/(no color) |
+| `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa` | Essential Oversized T-Shirt | 1000 | S/Black, M/Black, L/White |
+| `bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb` | Relaxed Linen Shirt | 1000 | M/Beige |
 
-Category seed: `cccccccc-cccc-cccc-cccc-cccccccccccc` (Sneakers).
+Category seed: `cccccccc-cccc-cccc-cccc-cccccccccccc` (T-Shirts).
 
 ---
 
@@ -76,18 +76,18 @@ CRUD responses bọc `ApiResponse`.
 
 ```json
 {
-  "name": "Nike Air Force 1",
-  "brand": "Nike",
-  "description": "Classic low-top",
+  "name": "Essential Oversized T-Shirt",
+  "brand": "StepZone",
+  "description": "Unisex heavyweight cotton oversized T-shirt",
   "categoryId": "cccccccc-cccc-cccc-cccc-cccccccccccc",
-  "basePrice": 2500000,
+  "basePrice": 1000,
   "status": "ACTIVE",
   "variants": [
-    { "size": "42", "color": "Black", "sku": "AF1-42-BLK" },
-    { "size": "43", "color": "Black", "sku": "AF1-43-BLK" }
+    { "size": "S", "color": "Black", "sku": "TEE-ESS-S-BLK" },
+    { "size": "M", "color": "Black", "sku": "TEE-ESS-M-BLK" }
   ],
   "images": [
-    { "imageUrl": "https://example.com/af1.jpg", "main": true }
+    { "imageUrl": "https://example.com/t-shirt.jpg", "main": true }
   ]
 }
 ```
@@ -106,7 +106,7 @@ Content-Type: application/json
   "items": [
     {
       "productId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-      "unitPrice": 2500000,
+      "unitPrice": 1000,
       "quantity": 1
     }
   ]
@@ -154,5 +154,5 @@ curl http://localhost:8082/api/v1/products/ping
 curl http://localhost:8082/api/v1/products
 curl -X POST http://localhost:8082/api/v1/products/validation \
   -H "Content-Type: application/json" \
-  -d "{\"items\":[{\"productId\":\"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\",\"unitPrice\":2500000,\"quantity\":1}]}"
+  -d "{\"items\":[{\"productId\":\"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\",\"unitPrice\":1000,\"quantity\":1}]}"
 ```

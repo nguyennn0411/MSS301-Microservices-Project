@@ -101,6 +101,8 @@ services:
       context: .
       dockerfile: services/user-service/Dockerfile
     environment:
+      SPRING_PROFILES_ACTIVE: dev
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-key-change-before-production-2026}
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_user_service?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}

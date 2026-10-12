@@ -1,7 +1,9 @@
 package com.ecommerce.order.domain;
 
 public enum OrderStatus {
-    CONFIRMED, PENDING_PAYMENT,
+    PAYMENT_PENDING,
+    PENDING_PAYMENT,
+    CONFIRMED,
     PAID,
     PAYMENT_FAILED,
     CANCELLED,

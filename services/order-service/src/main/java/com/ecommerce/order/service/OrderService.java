@@ -2,22 +2,25 @@ package com.ecommerce.order.service;
 
 import com.ecommerce.order.client.*;
 import com.ecommerce.order.client.dto.*;
-import com.ecommerce.order.domain.*;
-import com.ecommerce.order.dto.*;
-import com.ecommerce.order.repository.OrderRepository;
+import com.ecommerce.order.domain.OrderStatus;
+import com.ecommerce.order.shop.domain.*;
+import com.ecommerce.order.shop.dto.*;
+import com.ecommerce.order.shop.repository.ShopOrderRepository;
 import com.ecommerce.order.shop.ShopSettings;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import java.util.*;
 import java.math.BigDecimal;
 
 @Service
+@Profile("shop")
 public class OrderService {
- private final OrderRepository orders;
+ private final ShopOrderRepository orders;
  private final ProductCatalogClient catalog;
  private final PaymentClient payments;
  private final OrderCodeGenerator codes;
  private final ShopSettings settings;
- public OrderService(OrderRepository orders,ProductCatalogClient catalog,PaymentClient payments,OrderCodeGenerator codes,ShopSettings settings){this.orders=orders;this.catalog=catalog;this.payments=payments;this.codes=codes;this.settings=settings;}
+ public OrderService(ShopOrderRepository orders,ProductCatalogClient catalog,PaymentClient payments,OrderCodeGenerator codes,ShopSettings settings){this.orders=orders;this.catalog=catalog;this.payments=payments;this.codes=codes;this.settings=settings;}
  public OrderResponse create(CreateOrderRequest request){
   if(request.requestKey()!=null){var existing=orders.findByUserIdAndRequestKey(request.userId(),request.requestKey());if(existing.isPresent())return toResponse(existing.get());}
   String method=request.paymentMethod()==null?"PAYOS":request.paymentMethod();

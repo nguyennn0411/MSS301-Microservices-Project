@@ -4,7 +4,7 @@ import com.ecommerce.common.web.ApiResponse;
 import com.ecommerce.order.client.dto.ProductValidationRequest;
 import com.ecommerce.order.client.dto.ProductValidationResponse;
 import com.ecommerce.order.config.ProductServiceProperties;
-import com.ecommerce.order.dto.CreateOrderItemRequest;
+import com.ecommerce.order.shop.dto.CreateOrderItemRequest;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;

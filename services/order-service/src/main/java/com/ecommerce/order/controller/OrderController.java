@@ -1,16 +1,18 @@
 package com.ecommerce.order.controller;
 
 import com.ecommerce.common.web.ApiResponse;
-import com.ecommerce.order.dto.CreateOrderRequest;
-import com.ecommerce.order.dto.OrderResponse;
+import com.ecommerce.order.shop.dto.CreateOrderRequest;
+import com.ecommerce.order.shop.dto.OrderResponse;
 import com.ecommerce.order.service.OrderService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
 @RestController
+@Profile("shop")
 @RequestMapping("/api/v1/orders")
 public class OrderController {
 

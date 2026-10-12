@@ -11,16 +11,22 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
+        type:
+          preferred_uuid_jdbc_type: CHAR
   config:
     import: optional:configserver:http://localhost:8888
   flyway:
-    enabled: false
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
 
 eureka:
   client:
@@ -34,3 +40,9 @@ management:
     web:
       exposure:
         include: health,info,metrics
+
+security:
+  jwt:
+    issuer: ecommerce-user-service
+    secret: "${JWT_SECRET:dev-only-secret-key-change-before-production-2026}"
+    access-token-minutes: 60

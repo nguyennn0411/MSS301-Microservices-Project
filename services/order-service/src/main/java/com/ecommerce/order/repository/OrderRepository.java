@@ -1,16 +1,21 @@
 package com.ecommerce.order.repository;
 
-import com.ecommerce.order.domain.OrderEntity;
+import com.ecommerce.order.domain.Order;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
+public interface OrderRepository extends JpaRepository<Order, UUID> {
+    @Override
+    @EntityGraph(attributePaths = "items")
+    Optional<Order> findById(UUID id);
 
-    Optional<OrderEntity> findByUserIdAndRequestKey(UUID userId, UUID requestKey);
-    java.util.List<OrderEntity> findByUserIdOrderByCreatedAtDesc(UUID userId);
-    Optional<OrderEntity> findByOrderCode(Long orderCode);
+    @EntityGraph(attributePaths = "items")
+    List<Order> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
-    Optional<OrderEntity> findByPaymentId(UUID paymentId);
+    @EntityGraph(attributePaths = "items")
+    List<Order> findAllByOrderByCreatedAtDesc();
 }

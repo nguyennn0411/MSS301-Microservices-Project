@@ -4,25 +4,27 @@ import com.ecommerce.common.events.PaymentCancelledEvent;
 import com.ecommerce.common.events.PaymentFailedEvent;
 import com.ecommerce.common.events.PaymentRefundedEvent;
 import com.ecommerce.common.events.PaymentSuccessEvent;
-import com.ecommerce.order.domain.OrderEntity;
+import com.ecommerce.order.shop.domain.OrderEntity;
 import com.ecommerce.order.service.OrderService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
 @Component
+@Profile("shop")
 public class PaymentEventListener {
 
     private final ObjectMapper objectMapper;
     private final OrderService orderService;
-    private final com.ecommerce.order.repository.OrderRepository orders;
+    private final com.ecommerce.order.shop.repository.ShopOrderRepository orders;
 
     public PaymentEventListener(
             ObjectMapper objectMapper,
-            OrderService orderService, com.ecommerce.order.repository.OrderRepository orders
+            OrderService orderService, com.ecommerce.order.shop.repository.ShopOrderRepository orders
     ) {
         this.objectMapper = objectMapper;
         this.orderService = orderService; this.orders=orders;

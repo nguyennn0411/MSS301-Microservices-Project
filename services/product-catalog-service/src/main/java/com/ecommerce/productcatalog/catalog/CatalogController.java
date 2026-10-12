@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.*;
 
+@org.springframework.context.annotation.Profile("shop")
 @RestController
 @RequestMapping("/api/v1/products")
 public class CatalogController {

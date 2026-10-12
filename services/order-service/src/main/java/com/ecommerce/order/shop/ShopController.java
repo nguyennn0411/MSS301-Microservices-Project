@@ -1,8 +1,8 @@
 package com.ecommerce.order.shop;
 
 import com.ecommerce.common.web.ApiResponse;
-import com.ecommerce.order.dto.*;
-import com.ecommerce.order.repository.OrderRepository;
+import com.ecommerce.order.shop.dto.*;
+import com.ecommerce.order.shop.repository.ShopOrderRepository;
 import com.ecommerce.order.service.OrderService;
 import com.ecommerce.order.client.ProductCatalogClient;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -11,21 +11,23 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import java.util.*;
 
 @RestController
+@Profile("shop")
 @RequestMapping("/api/shop")
 public class ShopController {
  private final JdbcTemplate db;
  private final ObjectMapper json;
  private final OrderService service;
- private final OrderRepository orders;
+ private final ShopOrderRepository orders;
  private final ShopSettings settings;
  private final ProductCatalogClient catalog;
- public ShopController(JdbcTemplate db,ObjectMapper json,OrderService service,OrderRepository orders,ShopSettings settings,ProductCatalogClient catalog){this.db=db;this.json=json;this.service=service;this.orders=orders;this.settings=settings;this.catalog=catalog;}
+ public ShopController(JdbcTemplate db,ObjectMapper json,OrderService service,ShopOrderRepository orders,ShopSettings settings,ProductCatalogClient catalog){this.db=db;this.json=json;this.service=service;this.orders=orders;this.settings=settings;this.catalog=catalog;}
  public record CartRequest(@NotNull @Size(max=50) List<@Valid CreateOrderItemRequest> items){}
  public record Checkout(@NotBlank @Size(max=150) String buyerName,@NotBlank @Email @Size(max=200) String buyerEmail,
    @NotBlank @Pattern(regexp="[0-9+ ()-]{9,16}") String buyerPhone,@NotBlank @Size(max=500) String shippingAddress,@Size(max=500) String customerNote,
