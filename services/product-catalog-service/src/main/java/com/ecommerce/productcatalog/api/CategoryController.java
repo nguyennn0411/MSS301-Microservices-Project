@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+@org.springframework.context.annotation.Profile("!shop")
 @RestController
 @RequestMapping("/api/v1/categories")
 public class CategoryController {

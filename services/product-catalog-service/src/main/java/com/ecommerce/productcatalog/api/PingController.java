@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Instant;
 import java.util.Map;
 
+@org.springframework.context.annotation.Profile("!shop")
 @RestController
 @RequestMapping("/api/v1/products")
 public class PingController {

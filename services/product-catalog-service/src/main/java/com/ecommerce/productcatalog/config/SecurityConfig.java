@@ -17,6 +17,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 
+@org.springframework.context.annotation.Profile("!shop")
 @Configuration
 public class SecurityConfig {
     @Bean

@@ -37,32 +37,30 @@ ecommerce-platform/
 | config-server | 8888 | Cấu hình tập trung |
 | eureka-server | 8761 | Service discovery |
 
-## Chạy local
+## Chạy toàn bộ bằng Docker Compose
 
 ```bash
-mvn clean install -DskipTests
-docker compose -f docker-compose.infra.yml up -d
 docker compose up --build
 ```
 
-Hạ tầng local chỉ gồm MySQL 8.4 và RabbitMQ. RabbitMQ truyền các sự kiện trạng thái thanh toán từ `payment-service` sang `order-service`.
+Một lệnh này chạy MySQL, RabbitMQ, Eureka, Config Server, Gateway và bốn business service. Gateway ở `http://localhost:8080`. Order, Payment và Product Catalog dùng profile `shop`, Flyway và các database MySQL riêng. Có thể chạy `docker compose up --build -d` để chạy nền.
 
-Cấu hình mặc định dùng MySQL tại `localhost:3306` với tài khoản `root/root`. Có thể chạy database riêng bằng đúng lệnh:
+Để mở cửa hàng MSS Studio sau khi backend sẵn sàng, chạy `cd frontend/order-ui` rồi `npm start` và truy cập `http://localhost:5173/`. Trang chủ, danh mục, giỏ hàng, checkout COD/PayOS và lịch sử đơn kết nối trực tiếp tới các service local. Xem [hướng dẫn frontend](frontend/order-ui/README.md).
 
-```bash
-docker run --name mysql-db -e MYSQL_ROOT_PASSWORD=root -p 3306:3306 -d mysql:8.4
-```
+Nếu sử dụng PayOS, tạo `.env` ở thư mục gốc theo `.env.example`, điền `PAYOS_ENABLED=true`, ba key và URL callback. File `.env` không được đưa vào Git hoặc Docker build. Webhook cần một URL HTTPS công khai trỏ đến `/api/payments/payos/webhook`; callback localhost chỉ phục vụ thử giao diện, không cập nhật trạng thái thanh toán từ PayOS.
 
-Các JDBC URL có `createDatabaseIfNotExist=true`, vì vậy bốn database sẽ được tạo khi service kết nối bằng tài khoản root. Nếu dùng `docker-compose.infra.yml`, script trong `infra/mysql/init` sẽ tạo chúng ngay khi container khởi tạo.
+Để chạy và test hai service bằng Maven trên máy, dùng `mvn -pl services/order-service,services/payment-service -am test`. Hướng dẫn API và luồng request ở [docs/05-order-payment-flow.md](docs/05-order-payment-flow.md).
+
+Mật khẩu MySQL local mặc định là `root`; thay `MYSQL_ROOT_PASSWORD` trong `.env` khi triển khai môi trường khác. Compose tạo các database `mss_order`, `mss_payment`, `mss_product_catalog` bằng Flyway. Không dùng đồng thời `docker-compose.infra.yml` vì hai Compose cùng mở cổng 3306 và 5672.
 
 ## PayOS webhook
 
-PayOS cần gọi một public HTTPS URL. Mở tunnel tới API Gateway và cấu hình trước khi chạy `payment-service`:
+PayOS cần gọi một public HTTPS URL. Mở tunnel tới API Gateway, đặt `PAYOS_WEBHOOK_URL` trong `.env`, rồi xác nhận URL với PayOS:
 
 ```bash
 ngrok http 8080
-set PAYOS_WEBHOOK_URL=https://<your-ngrok-domain>.ngrok-free.app/api/payments/payos/webhook
-set PAYOS_AUTO_CONFIRM_WEBHOOK=true
+# PAYOS_WEBHOOK_URL=https://<your-domain>/api/payments/payos/webhook
+# POST http://localhost:8080/api/payments/payos/webhook/confirm
 ```
 
 Gateway hỗ trợ cả `/api/payments/**` và `/api/v1/payments/**`; dùng đường dẫn đầu tiên cho PayOS callback.
@@ -74,7 +72,11 @@ curl http://localhost:8081/actuator/health
 curl http://localhost:8082/actuator/health
 curl http://localhost:8084/actuator/health
 curl http://localhost:8085/actuator/health
+node scripts/gateway-order-payment-smoke.mjs
+node scripts/gateway-payos-link-smoke.mjs
 ```
+
+Chạy lệnh PayOS sau khi cấu hình key; lệnh này chỉ tạo rồi hủy payment link, không thực hiện chuyển tiền. Có bộ request Postman tại [docs/postman/order-payment.postman_collection.json](docs/postman/order-payment.postman_collection.json).
 
 ## Luồng đặt hàng
 

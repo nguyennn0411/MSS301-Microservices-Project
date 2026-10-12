@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+@org.springframework.context.annotation.Profile("!shop")
 @RestController
 @RequestMapping("/api/v1/products")
 public class ProductController {

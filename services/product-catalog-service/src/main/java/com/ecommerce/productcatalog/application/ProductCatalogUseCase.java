@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.UUID;
 
+@org.springframework.context.annotation.Profile("!shop")
 @Service
 @Transactional
 public class ProductCatalogUseCase {

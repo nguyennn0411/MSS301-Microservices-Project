@@ -15,6 +15,7 @@ import com.ecommerce.order.dto.UserValidationResponse;
 import com.ecommerce.order.exception.OrderIntegrationException;
 import com.ecommerce.order.exception.OrderNotFoundException;
 import com.ecommerce.order.repository.OrderRepository;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@Profile("!shop")
 @Transactional
 public class OrderService {
     private final OrderRepository orderRepository;
