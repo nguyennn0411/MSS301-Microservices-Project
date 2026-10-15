@@ -13,6 +13,10 @@ User Service sở hữu hồ sơ khách hàng và địa chỉ giao hàng. UUID 
 | `GET` | `/api/v1/users/{id}` | Chi tiết khách hàng |
 | `PUT` | `/api/v1/users/{id}` | Cập nhật hồ sơ và trạng thái |
 | `DELETE` | `/api/v1/users/{id}` | Soft delete bằng trạng thái `INACTIVE` |
+| `GET` | `/api/v1/users/me` | Hồ sơ của tài khoản đang đăng nhập |
+| `PUT` | `/api/v1/users/me` | Sửa email, họ tên, điện thoại của chính mình |
+
+`POST /api/v1/auth/register` và `POST /api/v1/auth/login` trả về JWT cùng hồ sơ. Gửi `Authorization: Bearer <token>` cho các API hồ sơ và địa chỉ. Khách hàng chỉ xem được hồ sơ và địa chỉ của mình; cập nhật trạng thái và xóa user theo UUID cần quyền `ADMIN`.
 
 Ví dụ tạo khách hàng:
 
@@ -54,3 +58,4 @@ Ví dụ tạo địa chỉ:
 Service tự chọn địa chỉ đầu tiên làm mặc định. Khi xóa địa chỉ mặc định, địa chỉ còn lại lâu nhất sẽ được chọn thay thế.
 
 Tất cả response được bọc bởi `ApiResponse` và đi qua API Gateway bằng cùng đường dẫn trên.
+Giao diện `/admin/users` dùng tài khoản `ADMIN` để liệt kê, tạo, cập nhật, vô hiệu hóa hoặc kích hoạt lại người dùng và quản lý địa chỉ của họ. Địa chỉ của khách hàng chỉ khách hàng đó hoặc quản trị viên mới được truy cập. Trang chủ dùng `GET/PUT /api/v1/users/me` cùng API địa chỉ sau khi đăng nhập.

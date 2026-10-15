@@ -2,6 +2,7 @@ package com.ecommerce.user.application.service;
 
 import com.ecommerce.user.application.dto.CreateUserRequest;
 import com.ecommerce.user.application.dto.UpdateUserRequest;
+import com.ecommerce.user.application.dto.UpdateProfileRequest;
 import com.ecommerce.user.application.dto.UserResponse;
 import com.ecommerce.user.domain.model.aggregate.Customer;
 import com.ecommerce.user.domain.repository.CustomerRepository;
@@ -47,16 +48,26 @@ public class CustomerService {
 
     public UserResponse update(UUID id, UpdateUserRequest request) {
         Customer customer = load(id);
-        String email = normalizeEmail(request.email());
+        updateContact(customer, request.email(), request.fullName(), request.phone());
+        customer.setStatus(parseStatus(request.status()));
+        return toResponse(customerRepository.saveAndFlush(customer));
+    }
+
+    public UserResponse updateProfile(UUID id, UpdateProfileRequest request) {
+        Customer customer = load(id);
+        updateContact(customer, request.email(), request.fullName(), request.phone());
+        return toResponse(customerRepository.saveAndFlush(customer));
+    }
+
+    private void updateContact(Customer customer, String emailValue, String fullName, String phone) {
+        String email = normalizeEmail(emailValue);
         customerRepository.findByEmailIgnoreCase(email)
-                .filter(existing -> !existing.getId().equals(id))
+                .filter(existing -> !existing.getId().equals(customer.getId()))
                 .ifPresent(existing -> { throw new IllegalArgumentException("Email is already registered"); });
 
         customer.setEmail(email);
-        customer.setFullName(request.fullName().trim());
-        customer.setPhone(trimToNull(request.phone()));
-        customer.setStatus(parseStatus(request.status()));
-        return toResponse(customerRepository.saveAndFlush(customer));
+        customer.setFullName(fullName.trim());
+        customer.setPhone(trimToNull(phone));
     }
 
     public UserResponse deactivate(UUID id) {

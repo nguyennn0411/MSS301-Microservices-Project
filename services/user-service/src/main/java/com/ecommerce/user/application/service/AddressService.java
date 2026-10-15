@@ -50,6 +50,7 @@ public class AddressService {
 
     public AddressResponse update(long id, UpdateAddressRequest request) {
         Address address = load(id);
+        boolean wasDefault = address.isDefaultAddress();
         if (request.defaultAddress()) clearDefault(address.getUserId(), id);
 
         address.setReceiverName(request.receiverName().trim());
@@ -57,8 +58,11 @@ public class AddressService {
         address.setGeographicAddress(geography(request.addressLine(), request.ward(), request.district(), request.city(), request.postalCode()));
         address.setDefaultAddress(request.defaultAddress());
 
-        if (!request.defaultAddress() && addressRepository.countByUserId(address.getUserId()) == 1) {
-            address.setDefaultAddress(true);
+        if (wasDefault && !request.defaultAddress()) {
+            addressRepository.findByUserIdOrderByDefaultAddressDescCreatedAtAsc(address.getUserId()).stream()
+                    .filter(other -> !other.getId().equals(id))
+                    .findFirst()
+                    .ifPresentOrElse(other -> other.setDefaultAddress(true), () -> address.setDefaultAddress(true));
         }
         return toResponse(addressRepository.saveAndFlush(address));
     }
