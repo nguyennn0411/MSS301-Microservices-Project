@@ -3,6 +3,7 @@ package com.ecommerce.user.api;
 import com.ecommerce.common.web.ApiResponse;
 import com.ecommerce.user.application.service.UserNotFoundException;
 import com.ecommerce.user.application.service.InvalidCredentialsException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice(basePackages = "com.ecommerce.user")
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class UserExceptionHandler {
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<Void> handleAccessDenied(AccessDeniedException exception) {
+        return ApiResponse.error("You do not have permission to access this resource");
+    }
 
     @ExceptionHandler(InvalidCredentialsException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)

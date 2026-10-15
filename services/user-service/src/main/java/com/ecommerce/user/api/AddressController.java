@@ -6,6 +6,7 @@ import com.ecommerce.user.application.dto.CreateAddressRequest;
 import com.ecommerce.user.application.dto.UpdateAddressRequest;
 import com.ecommerce.user.application.service.AddressService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -32,33 +33,39 @@ public class AddressController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN') or #request.userId().toString() == authentication.name")
     public ResponseEntity<ApiResponse<AddressResponse>> create(@Valid @RequestBody CreateAddressRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(addressService.create(request), "Address created"));
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN') or #userId.toString() == authentication.name")
     public ApiResponse<List<AddressResponse>> listByUser(@RequestParam UUID userId) {
         return ApiResponse.ok(addressService.listByUser(userId));
     }
 
     @GetMapping("/user/{userId}")
+    @PreAuthorize("hasRole('ADMIN') or #userId.toString() == authentication.name")
     public ApiResponse<List<AddressResponse>> listByUserPath(@PathVariable UUID userId) {
         return ApiResponse.ok(addressService.listByUser(userId));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @addressAccess.isOwner(#id, authentication.name)")
     public ApiResponse<AddressResponse> get(@PathVariable long id) {
         return ApiResponse.ok(addressService.get(id));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @addressAccess.isOwner(#id, authentication.name)")
     public ApiResponse<AddressResponse> update(@PathVariable long id,
                                                @Valid @RequestBody UpdateAddressRequest request) {
         return ApiResponse.ok(addressService.update(id, request), "Address updated");
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @addressAccess.isOwner(#id, authentication.name)")
     public ApiResponse<Void> delete(@PathVariable long id) {
         addressService.delete(id);
         return ApiResponse.ok(null, "Address deleted");

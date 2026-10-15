@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface AddressRepository extends JpaRepository<Address, Long> {
     List<Address> findByUserIdOrderByDefaultAddressDescCreatedAtAsc(UUID userId);
     long countByUserId(UUID userId);
+    boolean existsByIdAndUserId(Long id, UUID userId);
 }

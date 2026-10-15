@@ -1,1 +1,1 @@
-{"name":"order-payment-ui","private":true,"type":"module","scripts":{"start":"node server.mjs","check":"node --check server.mjs && node --check app.js"}}
+{"name":"mss-studio-ui","private":true,"type":"module","scripts":{"start":"node server.mjs","check":"node --check server.mjs && node --check app.js && node --check account.js && node --check admin.js && node --check management.js"}}

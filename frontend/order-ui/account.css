@@ -1,0 +1,67 @@
+.saved-address-trigger {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 0 24px;
+  padding: 16px 18px;
+  border: 1px solid #d9dece;
+  background: #f6f8f1;
+  color: #445334;
+  font-size: 13px;
+  text-align: left;
+}
+
+.saved-address-trigger:hover { background: #eef2e6; }
+#account-dialog { max-width: 980px; width: calc(100% - 32px); }
+#account-dialog .dialog-head { border-bottom: 1px solid #e5e8dc; padding-bottom: 20px; }
+#account-dialog .dialog-head h2 { font-family: Georgia, serif; font-size: 30px; font-weight: 400; }
+#account-message:empty { display: none; }
+#account-message:not(:empty) { padding: 13px 16px; margin-bottom: 20px; font-size: 13px; line-height: 1.6; }
+#account-message.account-error { background: #fbf0e9; color: #985e3e; border-left: 3px solid #b88460; }
+#account-message.account-success { background: #eff4e8; color: #475d37; border-left: 3px solid #738c5d; }
+.account-lead, .account-note, .account-empty { color: #7e8874; font-size: 13px; line-height: 1.8; }
+#account-auth { max-width: 510px; margin: 18px auto 12px; }
+.account-tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #dfe4d7; margin: 25px 0; }
+.account-tabs button { border: 0; background: transparent; padding: 12px; font-size: 13px; color: #819078; }
+.account-tabs button.selected { color: #303b29; border-bottom: 2px solid #303b29; }
+#account-auth form, #account-profile, #account-address-form { display: grid; gap: 15px; }
+#account-auth .primary { margin-top: 10px; }
+.account-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.account-fields .full { grid-column: 1 / -1; }
+.account-summary { display: flex; justify-content: space-between; align-items: center; gap: 20px; background: #f5f7ef; padding: 22px 26px; margin-bottom: 28px; }
+.account-summary h3 { font-family: Georgia, serif; font-size: 25px; font-weight: 400; margin: 0 0 5px; }
+.account-summary p:last-child { color: #7d8871; font-size: 12px; margin: 0; }
+.account-columns { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(320px, 1.2fr); gap: 34px; }
+.account-columns > section + section { border-left: 1px solid #e4e8dc; padding-left: 34px; }
+.account-columns h3 { margin: 0 0 18px; font-size: 17px; font-weight: 500; }
+.account-columns .section-heading { margin-bottom: 12px; }
+.account-columns .section-heading h3 { margin: 0; }
+.account-columns .outline { width: fit-content; }
+.account-address { border: 1px solid #e1e5d8; padding: 16px; margin-bottom: 12px; }
+.account-address-heading { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.account-address-heading strong { font-size: 14px; font-weight: 600; }
+.account-address-heading span { background: #edf2e4; color: #526c42; font-size: 10px; padding: 4px 7px; }
+.account-address p { color: #697461; font-size: 12px; line-height: 1.8; margin: 10px 0 14px; }
+.account-address-actions { display: flex; flex-wrap: wrap; gap: 14px; }
+.account-address-actions button { border: 0; border-bottom: 1px solid #a2ad95; background: none; padding: 0 0 2px; font-size: 11px; color: #4d6042; }
+.account-address-actions button:last-child { color: #986b59; border-color: #c7a793; }
+#account-address-form { background: #f8f9f4; border: 1px solid #e2e6d9; padding: 18px; margin-top: 16px; }
+#account-address-form input[type="hidden"] { display: none; }
+.account-check { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.account-check input { accent-color: #56683e; }
+.account-form-actions { display: flex; gap: 20px; align-items: center; }
+.account-note { border-top: 1px solid #e5e8dc; padding-top: 18px; margin: 28px 0 0; }
+
+@media (max-width: 760px) {
+  header nav { gap: 14px; flex-wrap: wrap; }
+  .account-columns { grid-template-columns: 1fr; }
+  .account-columns > section + section { border-left: 0; border-top: 1px solid #e4e8dc; padding: 25px 0 0; }
+  #account-dialog { padding: 24px; }
+}
+
+@media (max-width: 480px) {
+  .account-fields { grid-template-columns: 1fr; }
+  .account-summary { padding: 18px; }
+  #account-dialog .dialog-head h2 { font-size: 25px; }
+}

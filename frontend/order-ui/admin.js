@@ -1,4 +1,5 @@
 const $=s=>document.querySelector(s);
+document.querySelector('aside nav').insertAdjacentHTML('beforeend','<a href="/admin/products">▦ <span>Sản phẩm</span><b>03</b></a><a href="/admin/users">♙ <span>Người dùng</span><b>04</b></a>');
 let page='order',mode='create',busy=false,current=null;
 const escape=s=>String(s??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND'}).format(n||0);

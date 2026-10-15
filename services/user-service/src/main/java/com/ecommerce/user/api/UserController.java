@@ -3,10 +3,14 @@ package com.ecommerce.user.api;
 import com.ecommerce.common.web.ApiResponse;
 import com.ecommerce.user.application.dto.CreateUserRequest;
 import com.ecommerce.user.application.dto.UpdateUserRequest;
+import com.ecommerce.user.application.dto.UpdateProfileRequest;
 import com.ecommerce.user.application.dto.UserResponse;
 import com.ecommerce.user.application.dto.UserValidationResponse;
 import com.ecommerce.user.application.service.CustomerService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -43,8 +47,21 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
     public ApiResponse<UserResponse> get(@PathVariable UUID id) {
         return ApiResponse.ok(customerService.get(id));
+    }
+
+    @GetMapping("/me")
+    public ApiResponse<UserResponse> me(@AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.ok(customerService.get(UUID.fromString(jwt.getSubject())));
+    }
+
+    @PutMapping("/me")
+    public ApiResponse<UserResponse> updateMe(@AuthenticationPrincipal Jwt jwt,
+                                              @Valid @RequestBody UpdateProfileRequest request) {
+        return ApiResponse.ok(customerService.updateProfile(UUID.fromString(jwt.getSubject()), request),
+                "Profile updated");
     }
 
     @GetMapping("/{id}/validation")
@@ -59,12 +76,14 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<UserResponse> update(@PathVariable UUID id,
                                             @Valid @RequestBody UpdateUserRequest request) {
         return ApiResponse.ok(customerService.update(id, request), "User updated");
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<UserResponse> deactivate(@PathVariable UUID id) {
         return ApiResponse.ok(customerService.deactivate(id), "User deactivated");
     }

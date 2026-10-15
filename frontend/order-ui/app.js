@@ -1,3 +1,4 @@
+import {initAccount} from './account.js';
 const $=selector=>document.querySelector(selector);
 const money=value=>new Intl.NumberFormat('vi-VN').format(value??0)+'₫';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -35,12 +36,7 @@ $('#cart-items').onclick=async event=>{const button=event.target.closest('[data-
 $('#cart-items').onchange=async event=>{const field=event.target.dataset.variant;if(!field||busy)return;const id=event.target.closest('[data-key]').dataset.key;const next=cart.map(i=>({...i})),item=next.find(i=>i.variantId===id),p=product(item.productId),v=variant(item);
  const chosen=field==='color'?(p.variants.find(i=>i.color===event.target.value&&i.size===v.size)||p.variants.find(i=>i.color===event.target.value)):p.variants.find(i=>i.color===v.color&&i.size===event.target.value);
  const duplicate=next.find(i=>i.variantId===chosen.id&&i!==item);if(duplicate){if(duplicate.quantity+item.quantity>10){notice('Tối đa 10 sản phẩm cho mỗi biến thể.');renderCart();return;}duplicate.quantity+=item.quantity;await saveCart(next.filter(i=>i!==item));}else{item.variantId=chosen.id;await saveCart(next);}};
-function renderCatalog(){
- $('#catalog').innerHTML=products.length?products.map(p=>{const v=p.variants[0];return `<article class="catalog-card" data-product="${p.id}"><img src="${esc(safeUrl(p.image))}" alt="${esc(p.name)}" loading="lazy"><h3>${esc(p.name)}</h3><p>${money(p.price)}</p><div class="variant-row"><label>Màu<select class="catalog-color">${options([...new Set(p.variants.map(i=>i.color))],v.color)}</select></label><label>Size<select class="catalog-size">${options(p.variants.filter(i=>i.color===v.color).map(i=>i.size),v.size)}</select></label></div><button class="primary add-product">Thêm vào giỏ <span>+</span></button></article>`;}).join(''):'<p>Chưa có sản phẩm đang bán.</p>';
-}
-$('#catalog').onchange=event=>{if(!event.target.matches('.catalog-color'))return;const card=event.target.closest('[data-product]'),p=product(card.dataset.product);card.querySelector('.catalog-size').innerHTML=options(p.variants.filter(v=>v.color===event.target.value).map(v=>v.size),'');};
-$('#catalog').onclick=async event=>{const button=event.target.closest('.add-product');if(!button||busy)return;const card=button.closest('[data-product]'),p=product(card.dataset.product),v=p.variants.find(v=>v.color===card.querySelector('.catalog-color').value&&v.size===card.querySelector('.catalog-size').value);const next=cart.map(i=>({...i})),existing=next.find(i=>i.variantId===v.id);if(existing&&existing.quantity>=10){button.textContent='Tối đa 10 sản phẩm';return;}if(existing)existing.quantity++;else next.push({productId:p.id,variantId:v.id,quantity:1});if(await saveCart(next)){if(step===3)setStep(1);$('#catalog-dialog').close();}};
-document.querySelectorAll('.catalog-link').forEach(button=>button.onclick=()=>$('#catalog-dialog').showModal());document.querySelectorAll('dialog .close').forEach(button=>button.onclick=()=>button.closest('dialog').close());
+document.querySelectorAll('dialog .close').forEach(button=>button.onclick=()=>button.closest('dialog').close());
 $('#size-open').onclick=()=>$('#size-dialog').showModal();$('#bag-link').onclick=()=>setStep(1);$('#back-cart').onclick=()=>setStep(1);
 $('#continue').onclick=()=>{if(step===1&&cart.length)setStep(2);else if(step===2)$('#checkout-form').requestSubmit();else if(step===3){order=null;renderCart();showStore(true);}};
 $('#checkout-form').onsubmit=async event=>{event.preventDefault();if(busy||!cart.length)return;const data=Object.fromEntries(new FormData(event.target));lock(true);notice('');try{
@@ -66,14 +62,34 @@ $('#track-form').onsubmit=async event=>{event.preventDefault();const code=$('#tr
 async function initialize(){
  lock(true);$('#cart-items').textContent='Đang tải giỏ hàng…';
  try{
-  const [catalog,items,settings,capabilities]=await Promise.all([api('product','/api/v1/products'),api('order','/api/shop/cart'),api('order','/api/shop/settings'),api('payment','/api/payments/capabilities')]);
-  products=catalog.filter(p=>p.variants?.length);cart=items;shippingFee=Number(settings.shippingFee);
+  const catalog=await api('product','/api/v1/products');
+  products=catalog.filter(p=>p.variants?.length);
+  renderStore();
+  const [items,settings,capabilities]=await Promise.all([api('order','/api/shop/cart'),api('order','/api/shop/settings'),api('payment','/api/payments/capabilities')]);
+  cart=items;shippingFee=Number(settings.shippingFee);
   if(cart.some(i=>!products.some(p=>p.id===i.productId&&p.variants.some(v=>v.id===i.variantId))))throw new Error('Giỏ hàng có sản phẩm ngừng bán. Vui lòng xóa giỏ để chọn lại.');
   $('#delivery-fee').textContent=money(shippingFee);
   if(!capabilities.payosEnabled){const input=$('input[value="payos"]');input.disabled=true;input.dataset.permanentDisabled='true';$('#payos-description').textContent='Chưa khả dụng — vui lòng chọn COD';}
-  ready=true;renderCart();renderCatalog();renderStore();
- }catch(e){ready=false;cart=[];$('#cart-items').innerHTML='<div class="error">Không tải được dữ liệu cửa hàng. <button id="retry-load" class="text-button">Thử lại</button> <button id="reset-cart" class="text-button">Xóa giỏ hàng</button></div>';notice(e.message);$('#retry-load').onclick=initialize;$('#reset-cart').onclick=async()=>{try{await api('order','/api/shop/cart',{items:[]},'PUT');await initialize();}catch(error){notice(error.message);}};}finally{lock(false);}
+  ready=true;renderCart();
+ }catch(e){
+  ready=false;cart=[];
+  if(!products.length)$('#store-catalog').innerHTML='<div class="no-results">Không tải được danh sách sản phẩm. <button id="retry-products" class="text-button">Thử lại ↗</button></div>';
+  $('#cart-items').innerHTML='<div class="error">Giỏ hàng hiện chưa khả dụng. <button id="retry-load" class="text-button">Thử lại</button> <button id="reset-cart" class="text-button">Xóa giỏ hàng</button></div>';
+  notice(e.message);
+  $('#retry-load').onclick=initialize;
+  $('#reset-cart').onclick=async()=>{try{await api('order','/api/shop/cart',{items:[]},'PUT');await initialize();}catch(error){notice(error.message);}};
+  if($('#retry-products'))$('#retry-products').onclick=initialize;
+ }finally{lock(false);}
 }
+initAccount({onAddressSelect:address=>{
+ const form=$('#checkout-form');
+ form.elements.name.value=address.receiverName;
+ form.elements.phone.value=address.receiverPhone;
+ form.elements.email.value=address.email;
+ form.elements.address.value=address.formattedAddress;
+ if(view==='checkout'&&cart.length)setStep(2);
+ notice('Đã điền địa chỉ giao hàng từ tài khoản.');
+}});
 await initialize();
 if(location.pathname.startsWith('/payment/')){const code=new URLSearchParams(location.search).get('orderCode');$('#track-dialog').showModal();if(code&&/^\d+$/.test(code)){$('#track-code').value=code;$('#track-form').requestSubmit();}else await history();}
 
@@ -81,8 +97,10 @@ function shownProducts(){
  const term=$('#product-search').value.trim().toLocaleLowerCase('vi');
  const items=products.filter(p=>{
   const name=p.name.toLocaleLowerCase('vi');
-  return (!term||(name+' '+p.collection.toLocaleLowerCase('vi')).includes(term)) &&
-   (filter==='all'||(filter==='top'?name.includes('áo'):name.includes('quần')));
+  const category=(p.category||'').toLocaleLowerCase('vi');
+  const collection=(p.collection||'').toLocaleLowerCase('vi');
+  return (!term||(name+' '+collection+' '+category).includes(term)) &&
+   (filter==='all'||category===(filter==='top'?'áo':'quần'));
  });
  const sort=$('#product-sort').value;
  if(sort==='price-asc')items.sort((a,b)=>a.price-b.price);
@@ -106,10 +124,10 @@ function renderProductDetail(p,chosenColor,chosenSize,quantity=1){
  const size=sizes.includes(chosenSize)?chosenSize:sizes[0];
  $('#product-detail').innerHTML=
   '<div class="product-detail-image"><img src="'+esc(safeUrl(p.image))+'" alt="'+esc(p.name)+'"></div>'+
-  '<div class="product-detail-info"><p class="eyebrow">MSS STUDIO / '+esc(p.collection||'COLLECTION')+'</p><h2>'+esc(p.name)+'</h2><strong class="product-detail-price">'+money(p.price)+'</strong><p class="product-intro">Thiết kế từ bộ sưu tập MSS Studio, dễ phối cho những ngày thường.</p>'+
+  '<div class="product-detail-info"><p class="eyebrow">MSS STUDIO / '+esc(p.collection||'COLLECTION')+'</p><h2>'+esc(p.name)+'</h2><strong class="product-detail-price">'+money(p.price)+'</strong><p class="product-intro">'+esc(p.category||'Trang phục')+' · '+p.variants.length+' lựa chọn màu và kích thước đang bán.</p>'+
   '<div class="detail-choice"><span>Màu sắc</span><div class="choice-pills" id="detail-colors">'+colors.map(c=>'<button data-color="'+esc(c)+'" class="'+(c===color?'selected':'')+'">'+esc(c)+'</button>').join('')+'</div></div>'+
   '<div class="detail-choice"><span>Kích thước</span><div class="choice-pills" id="detail-sizes">'+sizes.map(s=>'<button data-size="'+esc(s)+'" class="'+(s===size?'selected':'')+'">'+esc(s)+'</button>').join('')+'</div></div>'+
-  '<button id="detail-size-guide" class="text-button">Xem bảng size ↗</button><div class="detail-buy"><div class="quantity"><button id="detail-minus" aria-label="Giảm số lượng">−</button><span>'+quantity+'</span><button id="detail-plus" aria-label="Tăng số lượng">+</button></div><button id="detail-add" class="primary">Thêm vào giỏ <span>→</span></button></div><p class="detail-footnote">Giá và biến thể được xác nhận từ Product Catalog khi đặt hàng.</p></div>';
+  '<button id="detail-size-guide" class="text-button">Xem bảng size ↗</button><div class="detail-buy"><div class="quantity"><button id="detail-minus" aria-label="Giảm số lượng">−</button><span>'+quantity+'</span><button id="detail-plus" aria-label="Tăng số lượng">+</button></div><button id="detail-add" class="primary" '+(ready?'':'disabled data-permanent-disabled="true"')+'>'+(ready?'Thêm vào giỏ':'Giỏ hàng chưa khả dụng')+' <span>→</span></button></div><p class="detail-footnote">Giá và biến thể được xác nhận từ Product Catalog khi đặt hàng.</p></div>';
  $('#detail-colors').onclick=e=>{const b=e.target.closest('[data-color]');if(b)renderProductDetail(p,b.dataset.color,size,quantity);};
  $('#detail-sizes').onclick=e=>{const b=e.target.closest('[data-size]');if(b)renderProductDetail(p,color,b.dataset.size,quantity);};
  $('#detail-minus').onclick=()=>renderProductDetail(p,color,size,Math.max(1,quantity-1));

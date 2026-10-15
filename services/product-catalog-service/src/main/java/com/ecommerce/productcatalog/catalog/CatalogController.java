@@ -15,7 +15,8 @@ public class CatalogController {
     private final JdbcTemplate db;
     public CatalogController(JdbcTemplate db) { this.db = db; }
     public record Variant(UUID id, String size, String color) {}
-    public record Product(UUID id, String name, String collection, BigDecimal price, String image, List<Variant> variants) {}
+    public record Product(UUID id, String name, String collection, String category, BigDecimal price,
+                          String image, List<Variant> variants) {}
     public record Item(@NotNull UUID productId, @Min(1) @Max(10) int quantity, UUID variantId) {}
     public record ValidationRequest(@NotEmpty List<@Valid Item> items) {}
     public record ValidatedItem(UUID productId, String productName, BigDecimal unitPrice, boolean available, String reason, UUID variantId, String size, String color) {}
@@ -23,11 +24,15 @@ public class CatalogController {
 
     @GetMapping
     public ApiResponse<List<Product>> list() {
-        return ApiResponse.ok(db.query("SELECT * FROM products WHERE status='ACTIVE' ORDER BY created_at,id", (rs,n) -> {
+        return ApiResponse.ok(db.query("SELECT p.*, c.name AS category_name FROM products p "
+                + "LEFT JOIN categories c ON c.id=p.category_id "
+                + "WHERE p.status='ACTIVE' ORDER BY p.created_at,p.id", (rs,n) -> {
             UUID id = UUID.fromString(rs.getString("id"));
             var images = db.queryForList("SELECT image_url FROM product_images WHERE product_id=? ORDER BY is_main DESC,id LIMIT 1", String.class,id.toString());
             var variants = db.query("SELECT id,size,color FROM product_variants WHERE product_id=? ORDER BY color,FIELD(size,'S','M','L','XL'),size",(v,i)->new Variant(UUID.fromString(v.getString("id")),v.getString("size"),v.getString("color")),id.toString());
-            return new Product(id,rs.getString("name"),rs.getString("description"),rs.getBigDecimal("base_price"),images.isEmpty()?null:images.getFirst(),variants);
+            return new Product(id,rs.getString("name"),rs.getString("description"),
+                    rs.getString("category_name"),rs.getBigDecimal("base_price"),
+                    images.isEmpty()?null:images.getFirst(),variants);
         }));
     }
 
