@@ -12,11 +12,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.v2.paymentRequests.PaymentLink;
+import vn.payos.model.v2.paymentRequests.PaymentLinkStatus;
 import vn.payos.model.webhooks.Webhook;
 import vn.payos.model.webhooks.WebhookData;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.Objects;
 
 @Service
 public class PaymentService {
@@ -117,6 +120,51 @@ public class PaymentService {
 
     public PaymentResponse getByOrderCode(Long orderCode) {
         return toResponse(findByOrderCode(orderCode));
+    }
+
+    public PaymentResponse verifyPayOSPayment(Long orderCode) {
+        PaymentEntity payment = findByOrderCode(orderCode);
+        if (!"PAYOS".equals(payment.getProvider())) {
+            throw new IllegalArgumentException("This order is not a PayOS payment.");
+        }
+        if (payment.getStatus() == PaymentStatus.PAID
+                || payment.getStatus() == PaymentStatus.CANCELLED
+                || payment.getStatus() == PaymentStatus.REFUNDED
+                || payment.getPaymentLinkId() == null) {
+            return toResponse(payment);
+        }
+
+        PaymentLink link = payOSGateway.getPaymentLink(orderCode);
+        if (!Objects.equals(link.getOrderCode(), payment.getOrderCode())
+                || !Objects.equals(link.getId(), payment.getPaymentLinkId())
+                || link.getAmount() == null
+                || payment.getAmount().compareTo(BigDecimal.valueOf(link.getAmount())) != 0) {
+            throw new IllegalStateException("PayOS payment link does not match this order.");
+        }
+
+        PaymentLinkStatus status = link.getStatus();
+        if (status == PaymentLinkStatus.PAID) {
+            if (link.getAmountPaid() == null
+                    || link.getAmountPaid() < link.getAmount()) {
+                throw new IllegalStateException("PayOS has not received the full payment amount.");
+            }
+            String reference = link.getTransactions() == null ? null : link.getTransactions().stream()
+                    .map(transaction -> transaction.getReference())
+                    .filter(value -> value != null && !value.isBlank())
+                    .findFirst().orElse(null);
+            payment.markPaid(reference);
+            paymentRepository.save(payment);
+            publishSafely(() -> eventPublisher.publishSuccess(payment));
+        } else if (status == PaymentLinkStatus.CANCELLED) {
+            payment.markCancelled("Cancelled on PayOS");
+            paymentRepository.save(payment);
+            publishSafely(() -> eventPublisher.publishCancelled(payment));
+        } else if (status == PaymentLinkStatus.FAILED || status == PaymentLinkStatus.EXPIRED) {
+            payment.markFailed("PayOS payment " + status.getValue());
+            paymentRepository.save(payment);
+            publishSafely(() -> eventPublisher.publishFailed(payment));
+        }
+        return toResponse(payment);
     }
 
     public PaymentResponse cancel(

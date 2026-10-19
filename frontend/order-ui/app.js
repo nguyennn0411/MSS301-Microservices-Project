@@ -2,7 +2,9 @@ const $=selector=>document.querySelector(selector);
 const money=value=>new Intl.NumberFormat('vi-VN').format(value??0)+'₫';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeUrl=value=>{try{const url=new URL(value);return ['https:','http:'].includes(url.protocol)?url.href:'';}catch{return '';}};
+const safePaymentUrl=value=>{try{const url=new URL(value);return url.protocol==='https:'&&(url.hostname==='payos.vn'||url.hostname.endsWith('.payos.vn'))?url.href:'';}catch{return '';}};
 let products=[],cart=[],step=1,order=null,busy=false,ready=false,shippingFee=0,view='store',filter='all';
+let paymentConfirmed=false,paymentStatus=null,paymentMessage='';
 let requestKey=sessionStorage.getItem('mss-checkout-key')||crypto.randomUUID();
 const product=id=>products.find(p=>p.id===id);
 const count=()=>cart.reduce((sum,i)=>sum+i.quantity,0);
@@ -26,7 +28,7 @@ function updateSummary(){
  $('#summary-lines').innerHTML=step===2?cart.map(item=>{const v=variant(item),p=product(item.productId);return `<div class="summary-mini"><span>${esc(p.name)}<small>${esc(v.color)} / ${esc(v.size)} / SL ${item.quantity}</small></span><span>${money(p.price*item.quantity)}</span></div>`;}).join(''):'';
  const button=$('#continue');button.disabled=busy||!ready||(step!==3&&!cart.length);button.textContent=busy?'Đang xử lý…':step===1?'Tiếp tục thanh toán →':step===2?'Đặt hàng →':'Tiếp tục mua sắm ↗';
 }
-function showStore(scroll=false){view='store';$('#store-view').hidden=false;$('#checkout-shell').hidden=true;notice('');window.scrollTo({top:scroll?$('#collection').getBoundingClientRect().top+window.scrollY-80:0,behavior:'smooth'});}
+function showStore(scroll=false){view='store';paymentConfirmed=false;paymentStatus=null;paymentMessage='';$('#store-view').hidden=false;$('#checkout-shell').hidden=true;notice('');window.scrollTo({top:scroll?$('#collection').getBoundingClientRect().top+window.scrollY-80:0,behavior:'smooth'});}
 function setStep(next){view='checkout';step=next;notice('');$('#store-view').hidden=true;$('#checkout-shell').hidden=false;$('#cart-view').hidden=next!==1;$('#delivery-view').hidden=next!==2;$('#complete-view').hidden=next!==3;document.querySelectorAll('[data-step]').forEach(el=>el.classList.toggle('active',Number(el.dataset.step)===next));updateSummary();window.scrollTo({top:0,behavior:'smooth'});}
 async function saveCart(next){
  if(busy)return;lock(true);notice('');try{cart=await api('order','/api/shop/cart',{items:next},'PUT');requestKey=crypto.randomUUID();sessionStorage.removeItem('mss-checkout-key');renderCart();return true;}catch(error){notice(error.message);renderCart();return false;}finally{lock(false);renderCart();}
@@ -46,23 +48,70 @@ $('#continue').onclick=()=>{if(step===1&&cart.length)setStep(2);else if(step===2
 $('#checkout-form').onsubmit=async event=>{event.preventDefault();if(busy||!cart.length)return;const data=Object.fromEntries(new FormData(event.target));lock(true);notice('');try{
  sessionStorage.setItem('mss-checkout-key',requestKey);
  order=await api('order','/api/shop/checkout',{buyerName:data.name.trim(),buyerEmail:data.email.trim(),buyerPhone:data.phone.trim(),shippingAddress:data.address.trim(),customerNote:data.note.trim(),paymentMethod:data.payment.toUpperCase(),requestKey});
- cart=[];sessionStorage.removeItem('mss-checkout-key');requestKey=crypto.randomUUID();setStep(3);showComplete();renderCart();
+ paymentConfirmed=false;paymentStatus=null;paymentMessage='';
+ cart=[];sessionStorage.removeItem('mss-checkout-key');requestKey=crypto.randomUUID();
+ if(data.payment==='payos'&&order.status==='PENDING_PAYMENT'){
+  const checkoutUrl=safePaymentUrl(order.checkoutUrl);
+  if(checkoutUrl){sessionStorage.setItem('mss-payos-order-code',String(order.orderCode));location.assign(checkoutUrl);return;}
+  paymentMessage='Không mở được trang PayOS. Đơn hàng đã được lưu; bạn có thể mở lại thanh toán từ bên dưới.';
+ }
+ setStep(3);showComplete();renderCart();
  }catch(error){notice(error.message+' Bạn có thể kiểm tra lịch sử đơn trước khi thử lại.');}finally{lock(false);}};
 function row(label,value){return `<div class="detail-row"><span>${esc(label)}</span><span>${esc(value)}</span></div>`;}
 function stateLabel(value){return ({CONFIRMED:'Đã xác nhận · thanh toán khi nhận hàng',PENDING_PAYMENT:'Chờ thanh toán',PAID:'Đã thanh toán',CANCELLED:'Đã hủy',PAYMENT_FAILED:'Khởi tạo thanh toán thất bại',REFUNDED:'Đã hoàn tiền'})[value]||value;}
-function orderDetails(data){return row('Mã đơn hàng',data.orderCode)+row('Trạng thái',stateLabel(data.status))+row('Người nhận',data.buyerName)+row('Số điện thoại',data.buyerPhone)+row('Giao đến',data.shippingAddress)+(data.items||[]).map(i=>row(i.productName+` (${i.color??''} / ${i.size??''}) × ${i.quantity}`,money(i.lineTotal))).join('')+row('Phí giao hàng',money(data.shippingFee))+row('Thanh toán',data.paymentMethod==='COD'?'Thanh toán khi nhận hàng':'PayOS')+row('Tổng cộng',money(data.totalAmount));}
-function addPaymentLink(target,data){const url=safeUrl(data.checkoutUrl);if(url&&data.status==='PENDING_PAYMENT'){const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.className='primary';a.textContent='Thanh toán qua PayOS ↗';target.append(a);}}
+function orderDetails(data){const status=paymentConfirmed&&data.status==='PENDING_PAYMENT'?'Đã thanh toán · đang cập nhật đơn hàng':paymentStatus==='CANCELLED'&&data.status==='PENDING_PAYMENT'?'Đã hủy thanh toán · đang cập nhật đơn hàng':stateLabel(data.status);return row('Mã đơn hàng',data.orderCode)+row('Trạng thái',status)+row('Người nhận',data.buyerName)+row('Số điện thoại',data.buyerPhone)+row('Giao đến',data.shippingAddress)+(data.items||[]).map(i=>row(i.productName+` (${i.color??''} / ${i.size??''}) × ${i.quantity}`,money(i.lineTotal))).join('')+row('Phí giao hàng',money(data.shippingFee))+row('Thanh toán',data.paymentMethod==='COD'?'Thanh toán khi nhận hàng':'PayOS')+row('Tổng cộng',money(data.totalAmount));}
+function addPaymentLink(target,data){const url=safePaymentUrl(data.checkoutUrl);if(url&&data.status==='PENDING_PAYMENT'&&!paymentConfirmed&&!['CANCELLED','FAILED'].includes(paymentStatus)){const a=document.createElement('a');a.href=url;a.className='primary';a.textContent='Mở trang QR PayOS ↗';target.append(a);}}
 function showComplete(){
- $('#complete-view').innerHTML=`<div class="complete"><div class="success-mark">${order.status==='CANCELLED'?'−':order.status==='PAYMENT_FAILED'?'!':'✓'}</div><p class="eyebrow">MSS / ORDER DETAILS</p><h2>${order.status==='CANCELLED'?'Đơn hàng đã hủy.':order.status==='PAYMENT_FAILED'?'Đơn đã lưu, thanh toán gặp lỗi.':'Đơn hàng đã được ghi nhận.'}</h2><p>Lưu mã đơn để theo dõi trạng thái và xem lại thông tin.</p>${orderDetails(order)}${order.statusReason?`<div class="notice-box">${esc(order.statusReason)}</div>`:''}<div class="complete-actions"><button class="outline" id="copy-code">Sao chép mã đơn</button><button class="outline" id="refresh-order">Cập nhật trạng thái</button>${['CONFIRMED','PENDING_PAYMENT','PAYMENT_FAILED'].includes(order.status)?'<button class="outline" id="cancel-order">Hủy đơn hàng</button>':''}</div></div>`;
+ const paid=order.status==='PAID'||paymentConfirmed;
+ const heading=paid?(order.status==='PAID'?'Thanh toán thành công!':'Thanh toán thành công, đang cập nhật đơn hàng.'):
+  order.status==='CANCELLED'||paymentStatus==='CANCELLED'?'Thanh toán đã hủy.':order.status==='PAYMENT_FAILED'||paymentStatus==='FAILED'?'Đơn đã lưu, thanh toán gặp lỗi.':
+  order.status==='PENDING_PAYMENT'?'Đơn hàng đang chờ thanh toán.':'Đơn hàng đã được ghi nhận.';
+ const description=paid?'Cảm ơn bạn đã mua sắm tại MSS Studio.':order.status==='CANCELLED'||paymentStatus==='CANCELLED'?'Đơn hàng chưa được thanh toán.':order.status==='PENDING_PAYMENT'?'Quét mã QR trên trang PayOS để hoàn tất thanh toán.':'Lưu mã đơn để theo dõi trạng thái và xem lại thông tin.';
+ $('#complete-view').innerHTML=`<div class="complete"><div class="success-mark">${paid?'✓':order.status==='CANCELLED'||paymentStatus==='CANCELLED'?'−':'!'}</div><p class="eyebrow">MSS / ORDER DETAILS</p><h2>${heading}</h2><p>${description}</p>${paymentMessage?`<div class="notice-box" role="status">${esc(paymentMessage)}</div>`:''}${orderDetails(order)}${order.statusReason?`<div class="notice-box">${esc(order.statusReason)}</div>`:''}<div class="complete-actions"><button class="outline" id="copy-code">Sao chép mã đơn</button><button class="outline" id="refresh-order">Cập nhật trạng thái</button>${['CONFIRMED','PENDING_PAYMENT','PAYMENT_FAILED'].includes(order.status)&&!paid&&!['CANCELLED','FAILED'].includes(paymentStatus)?'<button class="outline" id="cancel-order">Hủy đơn hàng</button>':''}</div></div>`;
  addPaymentLink($('#complete-view .complete-actions'),order);
  $('#copy-code').onclick=async()=>{try{await navigator.clipboard.writeText(String(order.orderCode));$('#copy-code').textContent='Đã sao chép';}catch{notice('Mã đơn: '+order.orderCode);}};
- $('#refresh-order').onclick=async()=>{lock(true);try{order=await api('order','/api/shop/orders/'+order.orderCode);showComplete();}catch(e){notice(e.message);}finally{lock(false);}};
+ $('#refresh-order').onclick=async()=>{lock(true);try{await refreshOrderStatus();showComplete();}catch(e){notice(e.message);}finally{lock(false);}};
  if($('#cancel-order'))$('#cancel-order').onclick=async()=>{if(!confirm('Hủy đơn '+order.orderCode+'?'))return;lock(true);try{order=await api('order','/api/shop/orders/'+order.orderCode+'/cancel',{reason:'Khách hàng yêu cầu hủy'});showComplete();}catch(e){notice(e.message);}finally{lock(false);}};
+}
+async function refreshOrderStatus(){
+ const code=order.orderCode;
+ if(order.paymentMethod==='PAYOS'&&order.status==='PENDING_PAYMENT'){
+  const payment=await api('payment','/api/payments/payos/'+code+'/verify',{});
+  if(payment.orderId!==order.id||String(payment.orderCode)!==String(code)||payment.provider!=='PAYOS')throw new Error('Không xác minh được thanh toán cho đơn hàng này.');
+  paymentStatus=payment.status;
+  paymentConfirmed=payment.status==='PAID';
+  if(payment.status==='CANCELLED')paymentMessage='Giao dịch đã hủy trên PayOS.';
+  if(payment.status==='FAILED')paymentMessage='Thanh toán PayOS không thành công.';
+ }
+ order=await api('order','/api/shop/orders/'+code);
+ if(order.status==='PAID')paymentConfirmed=true;
+ return order;
+}
+async function resumePaymentReturn(){
+ const params=new URLSearchParams(location.search);
+ const rawCode=params.get('orderCode')||sessionStorage.getItem('mss-payos-order-code');
+ if(!rawCode||!/^\d{1,18}$/.test(rawCode)){notice('Không tìm thấy mã đơn PayOS. Vui lòng tra cứu lịch sử đơn hàng.');$('#track-dialog').showModal();await history();return;}
+ try{
+  order=await api('order','/api/shop/orders/'+encodeURIComponent(rawCode));
+  if(order.paymentMethod!=='PAYOS')throw new Error('Đơn hàng này không thanh toán qua PayOS.');
+  paymentMessage=location.pathname==='/payment/cancel'?'Đang kiểm tra trạng thái giao dịch đã hủy…':'Đang xác minh giao dịch với PayOS…';
+  setStep(3);showComplete();renderCart();
+  for(let attempt=0;attempt<15&&view==='checkout'&&step===3;attempt++){
+   try{await refreshOrderStatus();}catch(error){paymentMessage='Chưa kết nối được PayOS để xác minh. Vui lòng thử cập nhật trạng thái.';showComplete();break;}
+   if(['CANCELLED','FAILED'].includes(paymentStatus)||['PAID','CANCELLED','PAYMENT_FAILED','REFUNDED'].includes(order.status)){
+    paymentMessage=order.status==='PAID'||paymentConfirmed?'':order.status==='CANCELLED'?'Giao dịch đã hủy.':'';
+    sessionStorage.removeItem('mss-payos-order-code');showComplete();return;
+   }
+   paymentMessage=paymentConfirmed?'PayOS đã xác nhận thanh toán. Đang cập nhật trạng thái đơn hàng…':location.pathname==='/payment/cancel'?'Thanh toán chưa hoàn tất. Đang xác minh với PayOS…':'Đang chờ PayOS xác nhận thanh toán…';
+   showComplete();await new Promise(resolve=>setTimeout(resolve,2000));
+  }
+  if(view==='checkout'&&step===3){paymentMessage=paymentConfirmed?'PayOS đã xác nhận thanh toán. Đơn hàng đang được cập nhật; hãy bấm “Cập nhật trạng thái”.':'Chưa xác nhận được thanh toán. Vui lòng bấm “Cập nhật trạng thái” hoặc xem lại đơn sau.';showComplete();}
+ }catch(error){notice(error.message);$('#track-dialog').showModal();await history();}
 }
 async function history(){const target=$('#track-result');target.textContent='Đang tải lịch sử đơn…';try{const data=await api('order','/api/shop/orders');target.innerHTML=data.length?'<h3 style="margin-top:24px">Đơn hàng của bạn</h3>'+data.map(o=>`<button class="history-order outline" data-code="${o.orderCode}" style="width:100%;text-align:left;margin:6px 0">#${o.orderCode} · ${money(o.totalAmount)}<br><small>${esc(stateLabel(o.status))}</small></button>`).join(''):'<p>Chưa có đơn hàng trong phiên mua sắm này.</p>';}catch(e){target.textContent=e.message;}}
 $('#track-open').onclick=()=>{$('#track-dialog').showModal();history();};
 $('#track-result').onclick=event=>{const button=event.target.closest('[data-code]');if(!button)return;$('#track-code').value=button.dataset.code;$('#track-form').requestSubmit();};
-$('#track-form').onsubmit=async event=>{event.preventDefault();const code=$('#track-code').value.trim(),target=$('#track-result'),button=event.target.querySelector('button');button.disabled=true;target.textContent='Đang tìm đơn hàng…';try{if(!/^\d+$/.test(code))throw new Error('Mã đơn hàng phải là số.');order=await api('order','/api/shop/orders/'+encodeURIComponent(code));target.innerHTML=orderDetails(order);addPaymentLink(target,order);const details=document.createElement('button');details.className='outline';details.textContent='Xem và quản lý đơn hàng';details.onclick=()=>{$('#track-dialog').close();setStep(3);showComplete();};target.append(details);}catch(e){target.innerHTML=`<div class="error">${esc(e.message)}</div>`;}finally{button.disabled=false;}};
+$('#track-form').onsubmit=async event=>{event.preventDefault();const code=$('#track-code').value.trim(),target=$('#track-result'),button=event.target.querySelector('button');button.disabled=true;target.textContent='Đang tìm đơn hàng…';try{if(!/^\d+$/.test(code))throw new Error('Mã đơn hàng phải là số.');order=await api('order','/api/shop/orders/'+encodeURIComponent(code));paymentConfirmed=order.status==='PAID';paymentStatus=null;paymentMessage='';target.innerHTML=orderDetails(order);addPaymentLink(target,order);const details=document.createElement('button');details.className='outline';details.textContent='Xem và quản lý đơn hàng';details.onclick=()=>{$('#track-dialog').close();setStep(3);showComplete();};target.append(details);}catch(e){target.innerHTML=`<div class="error">${esc(e.message)}</div>`;}finally{button.disabled=false;}};
 async function initialize(){
  lock(true);$('#cart-items').textContent='Đang tải giỏ hàng…';
  try{
@@ -75,7 +124,7 @@ async function initialize(){
  }catch(e){ready=false;cart=[];$('#cart-items').innerHTML='<div class="error">Không tải được dữ liệu cửa hàng. <button id="retry-load" class="text-button">Thử lại</button> <button id="reset-cart" class="text-button">Xóa giỏ hàng</button></div>';notice(e.message);$('#retry-load').onclick=initialize;$('#reset-cart').onclick=async()=>{try{await api('order','/api/shop/cart',{items:[]},'PUT');await initialize();}catch(error){notice(error.message);}};}finally{lock(false);}
 }
 await initialize();
-if(location.pathname.startsWith('/payment/')){const code=new URLSearchParams(location.search).get('orderCode');$('#track-dialog').showModal();if(code&&/^\d+$/.test(code)){$('#track-code').value=code;$('#track-form').requestSubmit();}else await history();}
+if(location.pathname==='/payment/success'||location.pathname==='/payment/cancel')await resumePaymentReturn();
 
 function shownProducts(){
  const term=$('#product-search').value.trim().toLocaleLowerCase('vi');
