@@ -1,43 +1,33 @@
 const $ = selector => document.querySelector(selector);
-const section = location.pathname === '/admin/users' ? 'users' : 'products';
+const section = location.pathname.replace(/\/$/, '') === '/admin/users' ? 'users' : 'products';
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const money = value => new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND'}).format(Number(value) || 0);
-const sessionKey = 'mss-admin-session';
-let session, products = [], categories = [], users = [], addresses = [];
+let session = null, products = [], categories = [], users = [], addresses = [];
 let selectedProduct = null, selectedUser = null, busy = false;
-try { session = JSON.parse(sessionStorage.getItem(sessionKey) || 'null'); } catch { session = null; }
-if (!session?.token || session.expiresAt <= Date.now() || session.user?.role !== 'ADMIN') session = null;
 
 function field(form, name) { return form.elements.namedItem(name); }
 function notice(message = '', error = false) {
   $('#notice').textContent = message;
   $('#notice').className = message ? `message${error ? ' error' : ''}` : '';
 }
-function authView() {
-  $('#admin-login-card').hidden = Boolean(session);
-  $('#admin-workspace').hidden = !session;
-  $('#product-workspace').hidden = !session || section !== 'products';
-  $('#user-workspace').hidden = !session || section !== 'users';
-  $('#admin-identity').textContent = session ? `${session.user.fullName} · ${session.user.email}` : '';
-}
-function signOut(message = '') {
-  session = null;
-  sessionStorage.removeItem(sessionKey);
-  authView();
-  notice(message, Boolean(message));
-}
-async function api(service, path, {method = 'GET', body, anonymous = false} = {}) {
-  if (!anonymous && (!session || session.expiresAt <= Date.now())) {
-    signOut('Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại.');
-    throw new Error('Phiên quản trị đã hết hạn.');
+async function loadSession() {
+  const response = await fetch('/auth/session', {signal: AbortSignal.timeout(10000)});
+  if (!response.ok) throw new Error('Không thể kiểm tra phiên đăng nhập.');
+  const state = await response.json();
+  if (!state.authenticated || state.user?.role !== 'ADMIN') {
+    location.replace('/access-denied');
+    throw new Error('Bạn không có quyền quản trị.');
   }
-  const headers = {'Content-Type':'application/json'};
-  if (!anonymous) headers.Authorization = `Bearer ${session.token}`;
+  session = {user: state.user};
+  $('#admin-identity').textContent = `${state.user.fullName} · ${state.user.email}`;
+}
+async function api(service, path, {method = 'GET', body} = {}) {
   const response = await fetch(`/backend/${service}${path}`, {
-    method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(45000)
+    method, headers: {'Content-Type':'application/json'},
+    body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(45000)
   });
   const result = await response.json().catch(() => ({}));
-  if (response.status === 401 && !anonymous) signOut('Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại.');
+  if ([401, 403].includes(response.status)) location.replace('/access-denied');
   if (!response.ok || result.success === false) throw new Error(result.message || `Yêu cầu thất bại (HTTP ${response.status}).`);
   return result.data;
 }
@@ -160,23 +150,13 @@ function editAddress(address = null) {
 
 $('#title').textContent = $('#crumb').textContent = section === 'users' ? 'Người dùng' : 'Sản phẩm';
 $('#subtitle').textContent = section === 'users' ? 'Quản lý tài khoản và địa chỉ giao hàng.' : 'Quản lý danh mục, sản phẩm và biến thể hiển thị trên trang chủ.';
+$('#product-workspace').hidden = section !== 'products';
+$('#user-workspace').hidden = section !== 'users';
 $(`#nav-${section}`).classList.add('active');
-authView();
-$('#admin-login').onsubmit = event => {
-  event.preventDefault();
-  run(async () => {
-    const data = Object.fromEntries(new FormData(event.currentTarget));
-    const result = await api('user','/api/v1/auth/login',{method:'POST',body:data,anonymous:true});
-    if (result.user?.role !== 'ADMIN') throw new Error('Tài khoản này không có quyền quản trị.');
-    session = {token:result.accessToken,expiresAt:Date.now()+result.expiresInSeconds*1000,user:result.user};
-    sessionStorage.setItem(sessionKey,JSON.stringify(session));
-    event.currentTarget.reset();
-    authView();
-    if (section === 'users') await loadUsers(); else await loadProducts();
-    notice('Đã đăng nhập quản trị.');
-  });
+$('#admin-logout').onclick = async () => {
+  await fetch('/auth/logout', {method: 'POST'});
+  location.assign('/');
 };
-$('#admin-logout').onclick = () => signOut();
 $('#reload').onclick = () => run(async () => { if (!session) throw new Error('Vui lòng đăng nhập quản trị.'); if (section === 'users') await loadUsers(); else await loadProducts(); notice('Đã cập nhật dữ liệu.'); });
 
 $('#product-search').oninput = renderProducts;
@@ -278,4 +258,4 @@ $('#address-form').onsubmit = event => {
     await loadAddresses(); editAddress(); notice('Đã lưu địa chỉ.');
   });
 };
-if (session) run(async () => { if (section === 'users') await loadUsers(); else await loadProducts(); });
+run(async () => { await loadSession(); if (section === 'users') await loadUsers(); else await loadProducts(); });
