@@ -20,6 +20,8 @@ async function loadSession() {
   }
   session = {user: state.user};
   $('#admin-identity').textContent = `${state.user.fullName} · ${state.user.email}`;
+  $('#admin-aside-name').textContent = state.user.fullName;
+  $('#admin-avatar').textContent = state.user.fullName.trim().split(/\s+/).map(part => part[0]).slice(-2).join('').toUpperCase();
 }
 async function api(service, path, {method = 'GET', body} = {}) {
   const response = await fetch(`/backend/${service}${path}`, {

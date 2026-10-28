@@ -17,6 +17,8 @@ Tài khoản ở trang chủ dùng User Service: đăng ký, đăng nhập, sử
 
 Bộ lọc Áo/Quần dùng danh mục do Product Catalog Service trả về. Profile `shop` của Product Catalog cần migration `V4__categorize_apparel.sql` để phân loại dữ liệu seed hiện có.
 
-Chạy `npm run check` để kiểm tra cú pháp. Đăng nhập duy nhất tại trang chủ. Tài khoản `ADMIN` được chuyển tới `/admin` sau khi đăng nhập; các trang `/admin`, `/admin/payment`, `/admin/products` và `/admin/users` kiểm tra quyền tại server giao diện trước khi trả nội dung. Khách hoặc người chưa đăng nhập được chuyển tới trang thông báo quyền truy cập.
+Chạy `npm run check` để kiểm tra cú pháp. Đăng nhập duy nhất tại trang chủ. Tài khoản `ADMIN` được chuyển tới `/admin` sau khi đăng nhập; các trang `/admin`, `/admin/payment`, `/admin/products`, `/admin/users` và `/admin/content` kiểm tra quyền tại server giao diện trước khi trả nội dung. Khách hoặc người chưa đăng nhập được chuyển tới trang thông báo quyền truy cập.
+
+Trang `/admin/content` cho phép xem và sửa nội dung banner, thời gian giao hàng dự kiến và bảng size. Order Service lưu các giá trị trong bảng `storefront_content`. Flyway `db/shop/V3__storefront_content.sql` tạo bảng và thêm dữ liệu ban đầu khi chạy trên DB mới; trên DB đã có, migration mới chạy một lần và giữ các chỉnh sửa sau đó. Bảng size dùng mỗi dòng `Size|Ngực|Eo|Hông`. Trang chủ đọc nội dung qua `GET /api/shop/content`; chỉ tài khoản ADMIN được gọi `PUT /api/shop/content`.
 
 Tài khoản mẫu trong môi trường local là `admin@stepzone.local` với mật khẩu `password` (đổi thông tin này khi triển khai ngoài môi trường thử nghiệm). Khu sản phẩm cho phép thêm, sửa, ngừng bán và kích hoạt lại sản phẩm; quản lý biến thể và danh mục. Khu người dùng cho phép thêm, sửa, vô hiệu hóa/kích hoạt lại tài khoản và quản lý địa chỉ giao hàng. Các thao tác quản trị gọi Product Catalog và User Service bằng JWT.

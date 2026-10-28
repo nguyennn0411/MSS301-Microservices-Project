@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Nội dung cửa hàng · Quản trị</title>
+  <link rel="stylesheet" href="/admin.css"><link rel="stylesheet" href="/management.css">
+</head>
+<body>
+  <aside>
+    <a class="brand" href="/">c<span>commerce</span></a>
+    <small>QUẢN TRỊ CỬA HÀNG</small>
+    <nav aria-label="Điều hướng quản trị">
+      <a href="/admin">□ <span>Đơn hàng &amp; thanh toán</span></a>
+      <a href="/admin/products">▦ <span>Sản phẩm</span></a>
+      <a href="/admin/users">♙ <span>Người dùng</span></a>
+      <a href="/admin/content" class="active">✎ <span>Nội dung</span></a>
+    </nav>
+    <div class="aside-bottom"><div class="avatar" id="admin-avatar"></div><div id="admin-identity"></div></div>
+  </aside>
+  <main>
+    <header><div>Quản trị <span>/</span> <strong>Nội dung cửa hàng</strong></div></header>
+    <section class="content">
+      <div class="heading"><div><h1>Nội dung cửa hàng</h1><p>Sửa banner, thời gian giao hàng và bảng size.</p></div><button id="reload" class="secondary" type="button">↻ Tải lại</button></div>
+      <p id="content-message" role="status" aria-live="polite"></p>
+      <form id="content-form" class="card" style="max-width:800px"><div id="content-fields"></div><div class="form-footer"><button class="primary">Lưu nội dung →</button></div></form>
+    </section>
+  </main>
+  <script type="module" src="/content.js"></script>
+</body>
+</html>

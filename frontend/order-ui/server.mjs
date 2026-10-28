@@ -3,19 +3,21 @@ import {readFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 
 const files = {
-  '/': 'index.html', '/app.js': 'app.js', '/account.js': 'account.js',
+  '/': 'index.html', '/app.js': 'app.js', '/account.js': 'account.js', '/store-content.js': 'store-content.js',
   '/style.css': 'style.css', '/account.css': 'account.css',
   '/admin': 'admin.html', '/admin/': 'admin.html',
   '/admin/payment': 'admin.html', '/admin/payment/': 'admin.html',
   '/admin/products': 'management.html', '/admin/products/': 'management.html',
   '/admin/users': 'management.html', '/admin/users/': 'management.html',
+  '/admin/content': 'content.html', '/admin/content/': 'content.html',
   '/admin.js': 'admin.js', '/admin.css': 'admin.css',
   '/management.js': 'management.js', '/management.css': 'management.css',
+  '/content.js': 'content.js',
   '/access-denied': 'access-denied.html',
   '/payment/success': 'index.html', '/payment/cancel': 'index.html'
 };
 const services = {order: 8084, payment: 8085, product: 8082, user: 8081};
-const adminAssets = new Set(['/admin.js', '/admin.css', '/management.js', '/management.css']);
+const adminAssets = new Set(['/admin.js', '/admin.css', '/management.js', '/management.css', '/content.js']);
 
 function cookies(req) {
   return Object.fromEntries((req.headers.cookie || '').split(';').map(part => part.trim())
@@ -51,7 +53,8 @@ async function currentUser(token) {
 }
 
 function requiresAdminApi(service, path, method) {
-  if (service === 'order') return !path.startsWith('/api/shop/') && path !== '/actuator/health';
+  if (service === 'order') return (method === 'PUT' && path === '/api/shop/content') ||
+    (!path.startsWith('/api/shop/') && path !== '/actuator/health');
   if (service === 'payment') return path !== '/actuator/health' &&
     !(method === 'GET' && path === '/api/payments/capabilities');
   return false;
@@ -103,7 +106,8 @@ http.createServer(async (req, res) => {
       }
       const headers = {'Content-Type': 'application/json'};
       if (service === 'order') headers['X-Shop-Session'] = shopSession;
-      if (['user', 'product'].includes(service) && stored.mss_auth)
+      if (['user', 'product'].includes(service) && stored.mss_auth ||
+          service === 'order' && path === '/api/shop/content' && req.method === 'PUT' && stored.mss_auth)
         headers.Authorization = `Bearer ${stored.mss_auth}`;
       const response = await fetch(`http://127.0.0.1:${services[service]}${path}${url.search}`, {
         method: req.method, headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : body,

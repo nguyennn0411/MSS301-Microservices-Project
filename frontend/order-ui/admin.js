@@ -44,3 +44,8 @@ $('#lookup-form').onsubmit=e=>{e.preventDefault();run(async()=>{const type=$('#l
 $('#create-tab').onclick=()=>{mode='create';render();};$('#lookup-tab').onclick=()=>{mode='lookup';render();};$('#add-item').onclick=item;$('#refresh').onclick=health;item();render();health();
 
 $('#admin-logout').onclick=async()=>{await fetch('/auth/logout',{method:'POST'});location.assign('/');};
+fetch('/auth/session').then(response=>response.json()).then(session=>{
+ if(!session.authenticated||session.user?.role!=='ADMIN')return location.replace('/access-denied');
+ $('#admin-identity').textContent=session.user.fullName;
+ $('#admin-avatar').textContent=session.user.fullName.trim().split(/\s+/).map(part=>part[0]).slice(-2).join('').toUpperCase();
+}).catch(()=>location.replace('/access-denied'));
