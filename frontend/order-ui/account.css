@@ -30,6 +30,7 @@
 .account-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
 .account-fields .full { grid-column: 1 / -1; }
 .account-summary { display: flex; justify-content: space-between; align-items: center; gap: 20px; background: #f5f7ef; padding: 22px 26px; margin-bottom: 28px; }
+.account-summary-actions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .account-summary h3 { font-family: Georgia, serif; font-size: 25px; font-weight: 400; margin: 0 0 5px; }
 .account-summary p:last-child { color: #7d8871; font-size: 12px; margin: 0; }
 .account-columns { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(320px, 1.2fr); gap: 34px; }

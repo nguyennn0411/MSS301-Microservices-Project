@@ -2,26 +2,16 @@ const $ = selector => document.querySelector(selector);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 })[character]);
-const sessionKey = 'mss-user-session';
 const friendlyErrors = {
   'Invalid email or password': 'Email hoặc mật khẩu chưa đúng.',
   'Email is already registered': 'Email này đã được đăng ký.'
 };
 const dialog = $('#account-dialog');
-let session;
 let user = null;
 let addresses = [];
 let loading = false;
-
-try {
-  session = JSON.parse(sessionStorage.getItem(sessionKey) || 'null');
-} catch {
-  session = null;
-}
-if (!session?.token || !Number.isFinite(session.expiresAt) || session.expiresAt <= Date.now()) {
-  sessionStorage.removeItem(sessionKey);
-  session = null;
-}
+sessionStorage.removeItem('mss-user-session');
+sessionStorage.removeItem('mss-admin-session');
 
 function showMessage(message, error = false) {
   const target = $('#account-message');
@@ -29,28 +19,22 @@ function showMessage(message, error = false) {
   target.className = message ? error ? 'account-error' : 'account-success' : '';
 }
 
-function signOut(message = '') {
-  session = null;
+async function signOut(message = '') {
+  await fetch('/auth/logout', {method: 'POST'}).catch(() => {});
   user = null;
   addresses = [];
-  sessionStorage.removeItem(sessionKey);
   render();
   showMessage(message, Boolean(message));
 }
 
 async function request(path, {method = 'GET', body, anonymous = false} = {}) {
-  if (!anonymous && (!session || session.expiresAt <= Date.now())) {
-    signOut('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-    throw new Error('Phiên đăng nhập đã hết hạn.');
-  }
-  const headers = {'Content-Type': 'application/json'};
-  if (!anonymous) headers.Authorization = `Bearer ${session.token}`;
   const response = await fetch(`/backend/user${path}`, {
-    method, headers, body: body === undefined ? undefined : JSON.stringify(body),
+    method, headers: {'Content-Type': 'application/json'},
+    body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(45000)
   });
   const result = await response.json().catch(() => ({}));
-  if (response.status === 401 && !anonymous) signOut('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+  if (response.status === 401 && !anonymous) await signOut('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
   if (!response.ok || result.success === false) {
     const message = result.message || `Không thể thực hiện yêu cầu (HTTP ${response.status}).`;
     throw new Error(friendlyErrors[message] || message);
@@ -86,10 +70,11 @@ function renderAddresses() {
 }
 
 function render() {
-  const signedIn = Boolean(session);
+  const signedIn = Boolean(user);
   $('#account-auth').hidden = signedIn;
   $('#account-dashboard').hidden = !signedIn;
   $('#account-open').textContent = user?.fullName ? user.fullName.trim().split(/\s+/).at(-1) : 'Tài khoản';
+  $('#account-admin-link').hidden = user?.role !== 'ADMIN';
   if (!signedIn) return;
   $('#account-name').textContent = user?.fullName || 'Đang tải hồ sơ…';
   $('#account-email').textContent = user?.email || '';
@@ -104,8 +89,11 @@ function render() {
 }
 
 async function refresh() {
-  if (!session) return;
-  user = await request('/api/v1/users/me');
+  const response = await fetch('/auth/session', {signal: AbortSignal.timeout(10000)});
+  if (!response.ok) throw new Error('Không thể kiểm tra phiên đăng nhập.');
+  const state = await response.json();
+  user = state.authenticated ? state.user : null;
+  if (!user) { addresses = []; render(); return; }
   addresses = await request(`/api/addresses?userId=${encodeURIComponent(user.id)}`);
   render();
 }
@@ -140,11 +128,11 @@ export function initAccount({onAddressSelect}) {
   const open = () => {
     showMessage('');
     dialog.showModal();
-    if (session) withLoading(refresh);
+    withLoading(refresh);
   };
   $('#account-open').onclick = open;
   $('#saved-address-open').onclick = open;
-  $('#account-logout').onclick = () => signOut();
+  $('#account-logout').onclick = () => withLoading(() => signOut());
   $('#account-add-address').onclick = () => editAddress();
   $('#account-cancel-address').onclick = () => { $('#account-address-form').hidden = true; };
 
@@ -163,11 +151,13 @@ export function initAccount({onAddressSelect}) {
       const data = Object.fromEntries(new FormData(form));
       withLoading(async () => {
         const result = await request(path, {method: 'POST', body: data, anonymous: true});
-        session = {token: result.accessToken, expiresAt: Date.now() + result.expiresInSeconds * 1000};
-        sessionStorage.setItem(sessionKey, JSON.stringify(session));
         user = result.user;
         form.reset();
         render();
+        if (user.role === 'ADMIN') {
+          window.location.assign('/admin');
+          return;
+        }
         await refresh();
         showMessage('Tài khoản đã sẵn sàng. Bạn có thể chọn hoặc thêm địa chỉ giao hàng.');
       });
@@ -224,5 +214,9 @@ export function initAccount({onAddressSelect}) {
   };
 
   render();
-  if (session) withLoading(refresh);
+  withLoading(refresh);
+  if (new URLSearchParams(location.search).has('login')) {
+    history.replaceState(null, '', location.pathname);
+    open();
+  }
 }

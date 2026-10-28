@@ -2,49 +2,74 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Commerce · Quản trị danh mục và người dùng</title>
+  <title>Commerce · Quản trị sản phẩm và người dùng</title>
   <link rel="stylesheet" href="/admin.css"><link rel="stylesheet" href="/management.css">
 </head>
 <body>
   <aside>
     <a class="brand" href="/">c<span>commerce</span></a>
-    <small>KHÔNG GIAN QUẢN LÝ</small>
-    <nav>
-      <a href="/admin">□ <span>Đơn hàng & thanh toán</span><b>01</b></a>
-      <a href="/admin/products" id="nav-products">▦ <span>Sản phẩm</span><b>02</b></a>
-      <a href="/admin/users" id="nav-users">♙ <span>Người dùng</span><b>03</b></a>
+    <small>QUẢN TRỊ CỬA HÀNG</small>
+    <nav aria-label="Điều hướng quản trị">
+      <a href="/admin">□ <span>Đơn hàng &amp; thanh toán</span></a>
+      <a href="/admin/products" id="nav-products">▦ <span>Sản phẩm</span></a>
+      <a href="/admin/users" id="nav-users">♙ <span>Người dùng</span></a>
+      <a href="/admin/content">✎ <span>Nội dung</span></a>
     </nav>
-    <div class="aside-bottom"><div class="avatar">AD</div><div>Quản trị viên<small>Môi trường local</small></div></div>
+    <div class="aside-bottom"><div class="avatar" id="admin-avatar"></div><div id="admin-aside-name"></div></div>
   </aside>
   <main>
-    <header><div>Workspace <span>/</span> <strong id="crumb">Sản phẩm</strong></div><div class="local"><i></i> LOCAL WORKSPACE</div></header>
+    <header><div>Quản trị <span>/</span> <strong id="crumb">Sản phẩm</strong></div></header>
     <section class="content">
-      <div class="heading"><div><div class="eyebrow">COMMERCE OPERATIONS</div><h1 id="title">Sản phẩm</h1><p id="subtitle"></p></div><button class="secondary" id="reload" type="button">↻ Tải lại dữ liệu</button></div>
+      <div class="heading"><div><h1 id="title">Sản phẩm</h1><p id="subtitle"></p></div><button class="secondary" id="reload" type="button">↻ Tải lại dữ liệu</button></div>
       <div id="notice" role="status" aria-live="polite"></div>
-      <section class="card login-card" id="admin-login-card">
-        <div class="card-head"><span class="step">01</span><div><h2>Đăng nhập quản trị</h2><p>Dùng tài khoản có quyền ADMIN để quản lý dữ liệu.</p></div></div>
-        <form id="admin-login"><div class="two-col"><label>Email<input name="email" type="email" autocomplete="username" required></label><label>Mật khẩu<input name="password" type="password" autocomplete="current-password" required></label></div><button class="primary">Đăng nhập →</button></form>
-      </section>
-      <div id="admin-workspace" hidden>
-        <div class="management-toolbar"><span id="admin-identity"></span><button class="secondary" id="admin-logout" type="button">Đăng xuất</button></div>
-        <div id="product-workspace" hidden>
-          <div class="management-grid">
-            <section class="card"><div class="list-heading"><div><h2>Danh sách sản phẩm</h2><p id="product-count"></p></div><button class="primary" id="new-product" type="button">+ Thêm sản phẩm</button></div><label class="search-label">Tìm sản phẩm<input id="product-search" type="search" placeholder="Tên, thương hiệu, danh mục, SKU"></label><div id="product-list" class="entity-list"></div></section>
-            <section class="card" id="product-editor"><div class="card-head"><span class="step">02</span><div><h2 id="product-form-title">Thêm sản phẩm</h2><p>Thông tin hiển thị trên trang chủ và dữ liệu đặt hàng.</p></div></div>
-              <form id="product-form"><input type="hidden" name="id"><label>Tên sản phẩm<input name="name" required maxlength="255"></label><div class="two-col"><label>Thương hiệu<input name="brand" maxlength="100"></label><label>Giá bán (VND)<input name="price" type="number" min="1" step="1000" required></label></div><div class="two-col"><label>Danh mục<select name="categoryId" required></select></label><label>Trạng thái<select name="status"><option value="ACTIVE">Đang bán</option><option value="INACTIVE">Ẩn tạm thời</option><option value="DISCONTINUED">Ngừng bán</option></select></label></div><label>Bộ sưu tập / mô tả<textarea name="collection" rows="3"></textarea></label><label>URL ảnh chính<input name="image" type="url" placeholder="https://..."></label><div class="section-label line">BIẾN THỂ <button id="add-variant" type="button">+ Thêm size / màu</button></div><div id="variant-list"></div><div class="form-footer"><button class="primary">Lưu sản phẩm →</button><button class="secondary" id="discontinue-product" type="button" hidden>Ngừng bán</button></div></form>
-            </section>
-          </div>
-          <section class="card category-card"><div class="list-heading"><div><h2>Danh mục</h2><p>Tên danh mục được dùng để lọc sản phẩm trên trang chủ.</p></div></div><div id="category-list" class="category-list"></div><form id="category-form"><input type="hidden" name="id"><div class="two-col"><label>Tên danh mục<input name="name" required maxlength="100"></label><label>Mô tả<input name="description"></label></div><div class="inline-actions"><button class="primary" id="category-submit">Thêm danh mục</button><button class="secondary" id="category-cancel" type="button" hidden>Hủy sửa</button></div></form></section>
+      <div class="management-toolbar"><span id="admin-identity"></span><button class="secondary" id="admin-logout" type="button">Đăng xuất</button></div>
+
+      <div id="product-workspace" hidden>
+        <div class="management-grid">
+          <section class="card">
+            <div class="list-heading"><div><h2>Danh sách sản phẩm</h2><p id="product-count"></p></div><button class="primary" id="new-product" type="button">+ Thêm sản phẩm</button></div>
+            <label class="search-label">Tìm sản phẩm<input id="product-search" type="search" placeholder="Tên, thương hiệu, danh mục, SKU"></label>
+            <div id="product-list" class="entity-list"></div>
+          </section>
+          <section class="card" id="product-editor">
+            <div class="card-head"><h2 id="product-form-title">Thêm sản phẩm</h2></div>
+            <form id="product-form">
+              <input type="hidden" name="id"><label>Tên sản phẩm<input name="name" required maxlength="255"></label>
+              <div class="two-col"><label>Thương hiệu<input name="brand" maxlength="100"></label><label>Giá bán (VND)<input name="price" type="number" min="1" step="1000" required></label></div>
+              <div class="two-col"><label>Danh mục<select name="categoryId" required></select></label><label>Trạng thái<select name="status"><option value="ACTIVE">Đang bán</option><option value="INACTIVE">Ẩn tạm thời</option><option value="DISCONTINUED">Ngừng bán</option></select></label></div>
+              <label>Bộ sưu tập / mô tả<textarea name="collection" rows="3"></textarea></label>
+              <label>URL ảnh chính<input name="image" type="url" placeholder="https://..."></label>
+              <div class="section-label line">BIẾN THỂ <button id="add-variant" type="button">+ Thêm size / màu</button></div>
+              <div id="variant-list"></div>
+              <div class="form-footer"><button class="primary">Lưu sản phẩm →</button><button class="secondary" id="discontinue-product" type="button" hidden>Ngừng bán</button></div>
+            </form>
+          </section>
         </div>
-        <div id="user-workspace" hidden>
-          <div class="management-grid">
-            <section class="card"><div class="list-heading"><div><h2>Danh sách người dùng</h2><p id="user-count"></p></div><button class="primary" id="new-user" type="button">+ Thêm người dùng</button></div><label class="search-label">Tìm người dùng<input id="user-search" type="search" placeholder="Tên, email, số điện thoại"></label><div id="user-list" class="entity-list"></div></section>
-            <section class="card"><div class="card-head"><span class="step">02</span><div><h2 id="user-form-title">Thêm người dùng</h2><p>Thông tin tài khoản và trạng thái hoạt động.</p></div></div><form id="user-form"><input type="hidden" name="id"><label>Họ và tên<input name="fullName" required maxlength="150"></label><label>Email<input name="email" type="email" required maxlength="255"></label><div class="two-col"><label>Số điện thoại<input name="phone" type="tel" pattern="[0-9+() .-]{8,20}"></label><label id="user-password-label">Mật khẩu ban đầu<input name="password" type="password" minlength="8" maxlength="72" autocomplete="new-password"></label></div><div class="two-col"><label id="user-role-label">Vai trò<select name="role"><option value="CUSTOMER">Khách hàng</option><option value="ADMIN">Quản trị viên</option></select></label><label id="user-status-label" hidden>Trạng thái<select name="status"><option value="ACTIVE">Hoạt động</option><option value="INACTIVE">Vô hiệu hóa</option></select></label></div><div class="form-footer"><button class="primary">Lưu người dùng →</button><button class="secondary" id="deactivate-user" type="button" hidden>Vô hiệu hóa</button></div></form></section>
-          </div>
-          <section class="card category-card" id="address-card" hidden><div class="list-heading"><div><h2>Địa chỉ của <span id="address-user-name"></span></h2><p>Chọn một người dùng để quản lý địa chỉ giao hàng.</p></div><button class="secondary" id="new-address" type="button">+ Thêm địa chỉ</button></div><div id="address-list" class="category-list"></div><form id="address-form"><input type="hidden" name="id"><div class="two-col"><label>Người nhận<input name="receiverName" required maxlength="150"></label><label>Số điện thoại<input name="receiverPhone" required pattern="[0-9+() .-]{8,20}"></label></div><label>Địa chỉ chi tiết<input name="addressLine" required maxlength="255"></label><div class="two-col"><label>Phường / xã<input name="ward" maxlength="100"></label><label>Quận / huyện<input name="district" maxlength="100"></label></div><div class="two-col"><label>Tỉnh / thành phố<input name="city" required maxlength="100"></label><label>Mã bưu chính<input name="postalCode" maxlength="20"></label></div><label class="check-label"><input name="defaultAddress" type="checkbox"> Địa chỉ mặc định</label><div class="inline-actions"><button class="primary" id="address-submit">Thêm địa chỉ</button><button class="secondary" id="address-cancel" type="button" hidden>Hủy sửa</button></div></form></section>
-        </div>
+        <section class="card category-card">
+          <div class="list-heading"><h2>Danh mục</h2></div>
+          <div id="category-list" class="category-list"></div>
+          <form id="category-form"><input type="hidden" name="id"><div class="two-col"><label>Tên danh mục<input name="name" required maxlength="100"></label><label>Mô tả<input name="description"></label></div><div class="inline-actions"><button class="primary" id="category-submit">Thêm danh mục</button><button class="secondary" id="category-cancel" type="button" hidden>Hủy sửa</button></div></form>
+        </section>
       </div>
-      <footer>COMMERCE <span>Product Catalog & User Workspace</span></footer>
+
+      <div id="user-workspace" hidden>
+        <div class="management-grid">
+          <section class="card">
+            <div class="list-heading"><div><h2>Danh sách người dùng</h2><p id="user-count"></p></div><button class="primary" id="new-user" type="button">+ Thêm người dùng</button></div>
+            <label class="search-label">Tìm người dùng<input id="user-search" type="search" placeholder="Tên, email, số điện thoại"></label>
+            <div id="user-list" class="entity-list"></div>
+          </section>
+          <section class="card">
+            <div class="card-head"><h2 id="user-form-title">Thêm người dùng</h2></div>
+            <form id="user-form"><input type="hidden" name="id"><label>Họ và tên<input name="fullName" required maxlength="150"></label><label>Email<input name="email" type="email" required maxlength="255"></label><div class="two-col"><label>Số điện thoại<input name="phone" type="tel" pattern="[0-9+() .-]{8,20}"></label><label id="user-password-label">Mật khẩu ban đầu<input name="password" type="password" minlength="8" maxlength="72" autocomplete="new-password"></label></div><div class="two-col"><label id="user-role-label">Vai trò<select name="role"><option value="CUSTOMER">Khách hàng</option><option value="ADMIN">Quản trị viên</option></select></label><label id="user-status-label" hidden>Trạng thái<select name="status"><option value="ACTIVE">Hoạt động</option><option value="INACTIVE">Vô hiệu hóa</option></select></label></div><div class="form-footer"><button class="primary">Lưu người dùng →</button><button class="secondary" id="deactivate-user" type="button" hidden>Vô hiệu hóa</button></div></form>
+          </section>
+        </div>
+        <section class="card category-card" id="address-card" hidden>
+          <div class="list-heading"><h2>Địa chỉ của <span id="address-user-name"></span></h2><button class="secondary" id="new-address" type="button">+ Thêm địa chỉ</button></div>
+          <div id="address-list" class="category-list"></div>
+          <form id="address-form"><input type="hidden" name="id"><div class="two-col"><label>Người nhận<input name="receiverName" required maxlength="150"></label><label>Số điện thoại<input name="receiverPhone" required pattern="[0-9+() .-]{8,20}"></label></div><label>Địa chỉ chi tiết<input name="addressLine" required maxlength="255"></label><div class="two-col"><label>Phường / xã<input name="ward" maxlength="100"></label><label>Quận / huyện<input name="district" maxlength="100"></label></div><div class="two-col"><label>Tỉnh / thành phố<input name="city" required maxlength="100"></label><label>Mã bưu chính<input name="postalCode" maxlength="20"></label></div><label class="check-label"><input name="defaultAddress" type="checkbox"> Địa chỉ mặc định</label><div class="inline-actions"><button class="primary" id="address-submit">Thêm địa chỉ</button><button class="secondary" id="address-cancel" type="button" hidden>Hủy sửa</button></div></form>
+        </section>
+      </div>
     </section>
   </main>
   <script type="module" src="/management.js"></script>
