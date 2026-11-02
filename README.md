@@ -43,13 +43,15 @@ ecommerce-platform/
 docker compose up --build
 ```
 
-Một lệnh này chạy MySQL, RabbitMQ, Eureka, Config Server, Gateway và bốn business service. Gateway ở `http://localhost:8080`. Order, Payment và Product Catalog dùng profile `shop`, Flyway và các database MySQL riêng. Có thể chạy `docker compose up --build -d` để chạy nền.
+Một lệnh này chạy MySQL, RabbitMQ, Eureka, Config Server, Gateway và bốn business service. Gateway mặc định ở `http://localhost:8080`; nếu cổng này đã được ứng dụng khác sử dụng, đặt `API_GATEWAY_PORT=18080` trong `.env` và truy cập `http://localhost:18080`. Order, Payment và Product Catalog dùng profile `shop`, Flyway và các database MySQL riêng. Có thể chạy `docker compose up --build -d` để chạy nền.
 
 Để mở cửa hàng MSS Studio sau khi backend sẵn sàng, chạy `cd frontend/order-ui` rồi `npm start` và truy cập `http://localhost:5173/`. Trang chủ, danh mục, giỏ hàng, checkout COD/PayOS và lịch sử đơn kết nối trực tiếp tới các service local. Xem [hướng dẫn frontend](frontend/order-ui/README.md).
 
 Nếu sử dụng PayOS, tạo `.env` ở thư mục gốc theo `.env.example`, điền `PAYOS_ENABLED=true`, ba key và URL callback. File `.env` không được đưa vào Git hoặc Docker build. Webhook cần một URL HTTPS công khai trỏ đến `/api/payments/payos/webhook`; callback localhost chỉ phục vụ thử giao diện, không cập nhật trạng thái thanh toán từ PayOS.
 
 Để chạy và test hai service bằng Maven trên máy, dùng `mvn -pl services/order-service,services/payment-service -am test`. Hướng dẫn API và luồng request ở [docs/05-order-payment-flow.md](docs/05-order-payment-flow.md).
+
+Nếu chạy service trực tiếp trong IntelliJ, hãy bật MySQL/RabbitMQ trước, dừng container Docker của chính service đó để tránh trùng cổng, và đặt profile `shop` cho Order, Payment, Product Catalog khi thử luồng cửa hàng. User Service dùng profile `dev`. Dấu đỏ ở cửa sổ Services có thể là lần Run local thất bại trước đó; kiểm tra console và health endpoint hiện tại để xác nhận.
 
 Mật khẩu MySQL local mặc định là `root`; thay `MYSQL_ROOT_PASSWORD` trong `.env` khi triển khai môi trường khác. Compose tạo các database `mss_order`, `mss_payment`, `mss_product_catalog` bằng Flyway. Không dùng đồng thời `docker-compose.infra.yml` vì hai Compose cùng mở cổng 3306 và 5672.
 
@@ -62,6 +64,8 @@ ngrok http 8080
 # PAYOS_WEBHOOK_URL=https://<your-domain>/api/payments/payos/webhook
 # POST http://localhost:8080/api/payments/payos/webhook/confirm
 ```
+
+Nếu đã đổi `API_GATEWAY_PORT`, thay `8080` trong hai lệnh trên bằng cổng host đã chọn.
 
 Gateway hỗ trợ cả `/api/payments/**` và `/api/v1/payments/**`; dùng đường dẫn đầu tiên cho PayOS callback.
 
