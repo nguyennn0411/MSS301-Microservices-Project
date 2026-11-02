@@ -11,6 +11,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 @EnableConfigurationProperties({
         PaymentServiceProperties.class,
         ProductServiceProperties.class,
+        PaymentServiceProperties.class,
         UserServiceProperties.class
 })
 public class OrderServiceApplication {

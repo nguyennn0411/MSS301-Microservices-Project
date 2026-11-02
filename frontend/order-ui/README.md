@@ -13,4 +13,12 @@ Mở http://localhost:5173/. Trang chủ lấy sản phẩm và biến thể t�
 
 Khi chọn PayOS và đặt hàng, trang tự chuyển tới trang QR do PayOS cung cấp. Sau khi quét mã, PayOS chuyển về `/payment/success` hoặc `/payment/cancel`; giao diện hỏi backend để xác minh trạng thái thực của PayOS và đơn hàng trước khi báo thanh toán thành công. Webhook vẫn nên cấu hình bằng URL HTTPS công khai qua `PAYOS_WEBHOOK_URL` trong file `.env` ở thư mục gốc để đơn hàng được cập nhật ngay cả khi khách đóng trình duyệt.
 
-Chạy npm run check để kiểm tra cú pháp. Trang /admin là giao diện API cũ phục vụ kiểm thử kỹ thuật; khách mua hàng dùng trang chủ.
+Tài khoản ở trang chủ dùng User Service: đăng ký, đăng nhập, sửa hồ sơ và lưu địa chỉ. Khi chọn một địa chỉ đã lưu, biểu mẫu checkout được điền sẵn. Phiên đăng nhập được lưu trong cookie `HttpOnly`; mã truy cập không được đưa vào JavaScript của trình duyệt. Đơn hàng của trang cửa hàng vẫn được tra cứu theo phiên trình duyệt của Order Service, không tự gắn vào tài khoản User Service.
+
+Bộ lọc Áo/Quần dùng danh mục do Product Catalog Service trả về. Profile `shop` của Product Catalog cần migration `V4__categorize_apparel.sql` để phân loại dữ liệu seed hiện có.
+
+Chạy `npm run check` để kiểm tra cú pháp. Đăng nhập duy nhất tại trang chủ. Tài khoản `ADMIN` được chuyển tới `/admin` sau khi đăng nhập; các trang `/admin`, `/admin/payment`, `/admin/products`, `/admin/users` và `/admin/content` kiểm tra quyền tại server giao diện trước khi trả nội dung. Khách hoặc người chưa đăng nhập được chuyển tới trang thông báo quyền truy cập.
+
+Trang `/admin/content` cho phép xem và sửa nội dung banner, thời gian giao hàng dự kiến và bảng size. Order Service lưu các giá trị trong bảng `storefront_content`. Flyway `db/shop/V3__storefront_content.sql` tạo bảng và thêm dữ liệu ban đầu khi chạy trên DB mới; trên DB đã có, migration mới chạy một lần và giữ các chỉnh sửa sau đó. Bảng size dùng mỗi dòng `Size|Ngực|Eo|Hông`. Trang chủ đọc nội dung qua `GET /api/shop/content`; chỉ tài khoản ADMIN được gọi `PUT /api/shop/content`.
+
+Tài khoản mẫu trong môi trường local là `admin@stepzone.local` với mật khẩu `password` (đổi thông tin này khi triển khai ngoài môi trường thử nghiệm). Khu sản phẩm cho phép thêm, sửa, ngừng bán và kích hoạt lại sản phẩm; quản lý biến thể và danh mục. Khu người dùng cho phép thêm, sửa, vô hiệu hóa/kích hoạt lại tài khoản và quản lý địa chỉ giao hàng. Các thao tác quản trị gọi Product Catalog và User Service bằng JWT.

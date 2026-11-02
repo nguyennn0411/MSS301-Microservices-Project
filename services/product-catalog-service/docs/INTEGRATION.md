@@ -156,3 +156,12 @@ curl -X POST http://localhost:8082/api/v1/products/validation \
   -H "Content-Type: application/json" \
   -d "{\"items\":[{\"productId\":\"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\",\"unitPrice\":1000,\"quantity\":1}]}"
 ```
+
+## 7. Giao diện cửa hàng (`shop` profile)
+
+`docker compose up --build -d` chạy Product Catalog với profile `shop`. API `GET /api/v1/products` của profile này trả về các trường `id`, `name`, `collection`, `category`, `price`, `image`, `variants` để trang MSS Studio hiển thị. `category` lấy từ bảng `categories`; migration `db/shop/V4__categorize_apparel.sql` chuyển sáu sản phẩm seed sang danh mục Áo hoặc Quần.
+
+Profile mặc định dùng API CRUD/JPA ở trên. Profile `shop` giữ hợp đồng validation theo biến thể mà Order Service của cửa hàng đang gọi, vì vậy hai profile cần được kiểm thử theo luồng riêng trước khi hợp nhất.
+# Quản trị cửa hàng (`shop` profile)
+
+Giao diện `/admin/products` sử dụng `GET /api/v1/products/admin` để lấy cả sản phẩm đang bán lẫn đã ẩn; `POST /api/v1/products`, `PUT /api/v1/products/{id}` và `DELETE /api/v1/products/{id}` để tạo, sửa và ngừng bán. `PUT` với `status=ACTIVE` có thể mở bán lại. Biến thể có `id` được giữ nguyên khi cập nhật để đơn hàng/giỏ hàng hiện có tiếp tục tham chiếu đúng. Danh mục dùng `GET`, `POST /api/v1/categories`, `PUT` và `DELETE /api/v1/categories/{id}`; danh mục đang có sản phẩm không thể xóa. Mọi thao tác ghi và danh sách sản phẩm quản trị cần JWT với vai trò `ADMIN` từ User Service. `GET /api/v1/products`, `GET /api/v1/categories` và `POST /api/v1/products/validation` vẫn công khai cho cửa hàng và Order Service.
