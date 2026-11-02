@@ -6,16 +6,28 @@ const safePaymentUrl=value=>{try{const url=new URL(value);return url.protocol===
 let products=[],cart=[],step=1,order=null,busy=false,ready=false,shippingFee=0,view='store',filter='all';
 let paymentConfirmed=false,paymentStatus=null,paymentMessage='';
 let requestKey=sessionStorage.getItem('mss-checkout-key')||crypto.randomUUID();
+let toastTimer;
 const product=id=>products.find(p=>p.id===id);
 const count=()=>cart.reduce((sum,i)=>sum+i.quantity,0);
 const subtotal=()=>cart.reduce((sum,i)=>sum+product(i.productId).price*i.quantity,0);
 const variant=item=>product(item.productId).variants.find(v=>v.id===item.variantId);
 function options(values,selected){return values.map(v=>`<option ${v===selected?'selected':''}>${esc(v)}</option>`).join('');}
 async function api(service,path,body,method=body===undefined?'GET':'POST'){
- const response=await fetch(`/backend/${service}${path}`,{method,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(50000)});
- const result=await response.json();if(!response.ok||result.success===false)throw new Error(result.message||'Không thể thực hiện yêu cầu.');return result.data;
+ let response;
+ try{response=await fetch(`/backend/${service}${path}`,{method,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(50000)});}
+ catch(error){throw new Error(error.name==='TimeoutError'?'Yêu cầu xử lý quá lâu. Vui lòng kiểm tra lại trạng thái đơn trước khi thử tiếp.':'Không kết nối được dịch vụ. Vui lòng thử lại sau.');}
+ let result;
+ try{result=await response.json();}catch{throw new Error('Dịch vụ trả về dữ liệu không hợp lệ. Vui lòng thử lại sau.');}
+ if(!response.ok||result.success===false)throw new Error(result.message||'Không thể thực hiện yêu cầu.');return result.data;
 }
-function notice(text){$('#notice').innerHTML=text?`<div class="error">${esc(text)}</div>`:'';let toast=$('#store-toast');if(!toast){toast=document.createElement('div');toast.id='store-toast';toast.setAttribute('role','status');document.body.append(toast);}toast.textContent=text||'';toast.hidden=!text;}
+function toast(text,tone='info',duration=4500){
+ clearTimeout(toastTimer);
+ let element=$('#store-toast');
+ if(!element){element=document.createElement('div');element.id='store-toast';document.body.append(element);}
+ element.textContent=text||'';element.dataset.tone=tone;element.setAttribute('role',tone==='error'?'alert':'status');element.hidden=!text;
+ if(text&&duration)toastTimer=setTimeout(()=>{element.hidden=true;},duration);
+}
+function notice(text){$('#notice').innerHTML=text?`<div class="error" role="alert">${esc(text)}</div>`:'';toast(text,text?'error':'info',text?7000:0);}
 function lock(value){busy=value;document.querySelectorAll('button,input,select,textarea').forEach(el=>{if(el.dataset.permanentDisabled!=='true')el.disabled=value;});if(!value&&ready)renderCart();else updateSummary();}
 function renderCart(){
  $('#bag-count').textContent=count();$('#item-count').textContent=`${String(count()).padStart(2,'0')} sản phẩm`;
@@ -30,32 +42,37 @@ function updateSummary(){
 }
 function showStore(scroll=false){view='store';paymentConfirmed=false;paymentStatus=null;paymentMessage='';$('#store-view').hidden=false;$('#checkout-shell').hidden=true;notice('');window.scrollTo({top:scroll?$('#collection').getBoundingClientRect().top+window.scrollY-80:0,behavior:'smooth'});}
 function setStep(next){view='checkout';step=next;notice('');$('#store-view').hidden=true;$('#checkout-shell').hidden=false;$('#cart-view').hidden=next!==1;$('#delivery-view').hidden=next!==2;$('#complete-view').hidden=next!==3;document.querySelectorAll('[data-step]').forEach(el=>el.classList.toggle('active',Number(el.dataset.step)===next));updateSummary();window.scrollTo({top:0,behavior:'smooth'});}
-async function saveCart(next){
- if(busy)return;lock(true);notice('');try{cart=await api('order','/api/shop/cart',{items:next},'PUT');requestKey=crypto.randomUUID();sessionStorage.removeItem('mss-checkout-key');renderCart();return true;}catch(error){notice(error.message);renderCart();return false;}finally{lock(false);renderCart();}
+async function saveCart(next,successMessage='Đã cập nhật giỏ hàng.'){
+ if(busy)return false;lock(true);notice('');toast('Đang lưu giỏ hàng…','info',0);
+ try{cart=await api('order','/api/shop/cart',{items:next},'PUT');requestKey=crypto.randomUUID();sessionStorage.removeItem('mss-checkout-key');renderCart();toast(successMessage,'success');return true;}
+ catch(error){notice(error.message);renderCart();return false;}
+ finally{lock(false);renderCart();}
 }
-$('#cart-items').onclick=async event=>{const button=event.target.closest('[data-action]');if(!button||busy)return;const id=button.closest('[data-key]').dataset.key;const next=cart.map(i=>({...i}));const item=next.find(i=>i.variantId===id);if(button.dataset.action==='remove'){await saveCart(next.filter(i=>i.variantId!==id));return;}if(button.dataset.action==='plus'&&item.quantity<10)item.quantity++;if(button.dataset.action==='minus'&&item.quantity>1)item.quantity--;await saveCart(next);};
+$('#cart-items').onclick=async event=>{const button=event.target.closest('[data-action]');if(!button||busy)return;const id=button.closest('[data-key]').dataset.key;const next=cart.map(i=>({...i}));const item=next.find(i=>i.variantId===id);if(button.dataset.action==='remove'){await saveCart(next.filter(i=>i.variantId!==id),'Đã xóa sản phẩm khỏi giỏ hàng.');return;}if(button.dataset.action==='plus'&&item.quantity<10)item.quantity++;if(button.dataset.action==='minus'&&item.quantity>1)item.quantity--;await saveCart(next,'Đã cập nhật số lượng trong giỏ hàng.');};
 $('#cart-items').onchange=async event=>{const field=event.target.dataset.variant;if(!field||busy)return;const id=event.target.closest('[data-key]').dataset.key;const next=cart.map(i=>({...i})),item=next.find(i=>i.variantId===id),p=product(item.productId),v=variant(item);
  const chosen=field==='color'?(p.variants.find(i=>i.color===event.target.value&&i.size===v.size)||p.variants.find(i=>i.color===event.target.value)):p.variants.find(i=>i.color===v.color&&i.size===event.target.value);
- const duplicate=next.find(i=>i.variantId===chosen.id&&i!==item);if(duplicate){if(duplicate.quantity+item.quantity>10){notice('Tối đa 10 sản phẩm cho mỗi biến thể.');renderCart();return;}duplicate.quantity+=item.quantity;await saveCart(next.filter(i=>i!==item));}else{item.variantId=chosen.id;await saveCart(next);}};
+ const duplicate=next.find(i=>i.variantId===chosen.id&&i!==item);if(duplicate){if(duplicate.quantity+item.quantity>10){notice('Tối đa 10 sản phẩm cho mỗi biến thể.');renderCart();return;}duplicate.quantity+=item.quantity;await saveCart(next.filter(i=>i!==item),'Đã gộp sản phẩm cùng màu và size.');}else{item.variantId=chosen.id;await saveCart(next,'Đã đổi màu và size trong giỏ hàng.');}};
 function renderCatalog(){
  $('#catalog').innerHTML=products.length?products.map(p=>{const v=p.variants[0];return `<article class="catalog-card" data-product="${p.id}"><img src="${esc(safeUrl(p.image))}" alt="${esc(p.name)}" loading="lazy"><h3>${esc(p.name)}</h3><p>${money(p.price)}</p><div class="variant-row"><label>Màu<select class="catalog-color">${options([...new Set(p.variants.map(i=>i.color))],v.color)}</select></label><label>Size<select class="catalog-size">${options(p.variants.filter(i=>i.color===v.color).map(i=>i.size),v.size)}</select></label></div><button class="primary add-product">Thêm vào giỏ <span>+</span></button></article>`;}).join(''):'<p>Chưa có sản phẩm đang bán.</p>';
 }
 $('#catalog').onchange=event=>{if(!event.target.matches('.catalog-color'))return;const card=event.target.closest('[data-product]'),p=product(card.dataset.product);card.querySelector('.catalog-size').innerHTML=options(p.variants.filter(v=>v.color===event.target.value).map(v=>v.size),'');};
-$('#catalog').onclick=async event=>{const button=event.target.closest('.add-product');if(!button||busy)return;const card=button.closest('[data-product]'),p=product(card.dataset.product),v=p.variants.find(v=>v.color===card.querySelector('.catalog-color').value&&v.size===card.querySelector('.catalog-size').value);const next=cart.map(i=>({...i})),existing=next.find(i=>i.variantId===v.id);if(existing&&existing.quantity>=10){button.textContent='Tối đa 10 sản phẩm';return;}if(existing)existing.quantity++;else next.push({productId:p.id,variantId:v.id,quantity:1});if(await saveCart(next)){if(step===3)setStep(1);$('#catalog-dialog').close();}};
+$('#catalog').onclick=async event=>{const button=event.target.closest('.add-product');if(!button||busy)return;const card=button.closest('[data-product]'),p=product(card.dataset.product),v=p.variants.find(v=>v.color===card.querySelector('.catalog-color').value&&v.size===card.querySelector('.catalog-size').value);const next=cart.map(i=>({...i})),existing=next.find(i=>i.variantId===v.id);if(existing&&existing.quantity>=10){notice('Tối đa 10 sản phẩm cho mỗi biến thể.');return;}if(existing)existing.quantity++;else next.push({productId:p.id,variantId:v.id,quantity:1});if(await saveCart(next,`Đã thêm ${p.name} vào giỏ hàng.`)){if(step===3){setStep(1);toast(`Đã thêm ${p.name} vào giỏ hàng.`,'success');}$('#catalog-dialog').close();}};
 document.querySelectorAll('.catalog-link').forEach(button=>button.onclick=()=>$('#catalog-dialog').showModal());document.querySelectorAll('dialog .close').forEach(button=>button.onclick=()=>button.closest('dialog').close());
 $('#size-open').onclick=()=>$('#size-dialog').showModal();$('#bag-link').onclick=()=>setStep(1);$('#back-cart').onclick=()=>setStep(1);
 $('#continue').onclick=()=>{if(step===1&&cart.length)setStep(2);else if(step===2)$('#checkout-form').requestSubmit();else if(step===3){order=null;renderCart();showStore(true);}};
-$('#checkout-form').onsubmit=async event=>{event.preventDefault();if(busy||!cart.length)return;const data=Object.fromEntries(new FormData(event.target));lock(true);notice('');try{
+$('#checkout-form').onsubmit=async event=>{event.preventDefault();if(busy||!cart.length)return;const data=Object.fromEntries(new FormData(event.target));lock(true);notice('');toast('Đang tạo đơn hàng…','info',0);try{
  sessionStorage.setItem('mss-checkout-key',requestKey);
  order=await api('order','/api/shop/checkout',{buyerName:data.name.trim(),buyerEmail:data.email.trim(),buyerPhone:data.phone.trim(),shippingAddress:data.address.trim(),customerNote:data.note.trim(),paymentMethod:data.payment.toUpperCase(),requestKey});
  paymentConfirmed=false;paymentStatus=null;paymentMessage='';
  cart=[];sessionStorage.removeItem('mss-checkout-key');requestKey=crypto.randomUUID();
  if(data.payment==='payos'&&order.status==='PENDING_PAYMENT'){
   const checkoutUrl=safePaymentUrl(order.checkoutUrl);
-  if(checkoutUrl){sessionStorage.setItem('mss-payos-order-code',String(order.orderCode));location.assign(checkoutUrl);return;}
+  if(checkoutUrl){sessionStorage.setItem('mss-payos-order-code',String(order.orderCode));toast(`Đã tạo đơn #${order.orderCode}. Đang mở trang thanh toán PayOS…`,'success');location.assign(checkoutUrl);return;}
   paymentMessage='Không mở được trang PayOS. Đơn hàng đã được lưu; bạn có thể mở lại thanh toán từ bên dưới.';
  }
  setStep(3);showComplete();renderCart();
+ const failed=order.status==='PAYMENT_FAILED';
+ toast(failed?`Đơn #${order.orderCode} đã lưu nhưng khởi tạo thanh toán thất bại. Vui lòng kiểm tra chi tiết đơn.`:paymentMessage||`Đã đặt hàng #${order.orderCode}. Thanh toán khi nhận hàng.`,failed||paymentMessage?'error':'success');
  }catch(error){notice(error.message+' Bạn có thể kiểm tra lịch sử đơn trước khi thử lại.');}finally{lock(false);}};
 function row(label,value){return `<div class="detail-row"><span>${esc(label)}</span><span>${esc(value)}</span></div>`;}
 function stateLabel(value){return ({CONFIRMED:'Đã xác nhận · thanh toán khi nhận hàng',PENDING_PAYMENT:'Chờ thanh toán',PAID:'Đã thanh toán',CANCELLED:'Đã hủy',PAYMENT_FAILED:'Khởi tạo thanh toán thất bại',REFUNDED:'Đã hoàn tiền'})[value]||value;}
@@ -70,8 +87,17 @@ function showComplete(){
  $('#complete-view').innerHTML=`<div class="complete"><div class="success-mark">${paid?'✓':order.status==='CANCELLED'||paymentStatus==='CANCELLED'?'−':'!'}</div><p class="eyebrow">MSS / ORDER DETAILS</p><h2>${heading}</h2><p>${description}</p>${paymentMessage?`<div class="notice-box" role="status">${esc(paymentMessage)}</div>`:''}${orderDetails(order)}${order.statusReason?`<div class="notice-box">${esc(order.statusReason)}</div>`:''}<div class="complete-actions"><button class="outline" id="copy-code">Sao chép mã đơn</button><button class="outline" id="refresh-order">Cập nhật trạng thái</button>${['CONFIRMED','PENDING_PAYMENT','PAYMENT_FAILED'].includes(order.status)&&!paid&&!['CANCELLED','FAILED'].includes(paymentStatus)?'<button class="outline" id="cancel-order">Hủy đơn hàng</button>':''}</div></div>`;
  addPaymentLink($('#complete-view .complete-actions'),order);
  $('#copy-code').onclick=async()=>{try{await navigator.clipboard.writeText(String(order.orderCode));$('#copy-code').textContent='Đã sao chép';}catch{notice('Mã đơn: '+order.orderCode);}};
- $('#refresh-order').onclick=async()=>{lock(true);try{await refreshOrderStatus();showComplete();}catch(e){notice(e.message);}finally{lock(false);}};
- if($('#cancel-order'))$('#cancel-order').onclick=async()=>{if(!confirm('Hủy đơn '+order.orderCode+'?'))return;lock(true);try{order=await api('order','/api/shop/orders/'+order.orderCode+'/cancel',{reason:'Khách hàng yêu cầu hủy'});showComplete();}catch(e){notice(e.message);}finally{lock(false);}};
+ $('#refresh-order').onclick=async()=>{
+  lock(true);notice('');toast('Đang cập nhật trạng thái đơn hàng…','info',0);
+  try{
+   const previous=order.status,previousPaid=paymentConfirmed;
+   await refreshOrderStatus();showComplete();
+   if(paymentConfirmed&&!previousPaid)toast(`PayOS đã xác nhận thanh toán đơn #${order.orderCode}.`,'success');
+   else if(order.status!==previous)toast(`Đơn #${order.orderCode}: ${stateLabel(order.status)}.`,['PAID','CONFIRMED'].includes(order.status)?'success':'error');
+   else toast('Trạng thái đơn hàng chưa thay đổi.','info');
+  }catch(e){notice(e.message);}finally{lock(false);}
+ };
+ if($('#cancel-order'))$('#cancel-order').onclick=async()=>{if(!confirm('Hủy đơn '+order.orderCode+'?'))return;lock(true);notice('');toast('Đang hủy đơn hàng…','info',0);try{order=await api('order','/api/shop/orders/'+order.orderCode+'/cancel',{reason:'Khách hàng yêu cầu hủy'});showComplete();toast(`Đã hủy đơn #${order.orderCode}.`,'success');}catch(e){notice(e.message);}finally{lock(false);}};
 }
 async function refreshOrderStatus(){
  const code=order.orderCode;
@@ -91,6 +117,7 @@ async function resumePaymentReturn(){
  const params=new URLSearchParams(location.search);
  const rawCode=params.get('orderCode')||sessionStorage.getItem('mss-payos-order-code');
  if(!rawCode||!/^\d{1,18}$/.test(rawCode)){notice('Không tìm thấy mã đơn PayOS. Vui lòng tra cứu lịch sử đơn hàng.');$('#track-dialog').showModal();await history();return;}
+ toast('Đang xác minh giao dịch PayOS…','info',0);
  try{
   order=await api('order','/api/shop/orders/'+encodeURIComponent(rawCode));
   if(order.paymentMethod!=='PAYOS')throw new Error('Đơn hàng này không thanh toán qua PayOS.');
@@ -100,18 +127,19 @@ async function resumePaymentReturn(){
    try{await refreshOrderStatus();}catch(error){paymentMessage='Chưa kết nối được PayOS để xác minh. Vui lòng thử cập nhật trạng thái.';showComplete();break;}
    if(['CANCELLED','FAILED'].includes(paymentStatus)||['PAID','CANCELLED','PAYMENT_FAILED','REFUNDED'].includes(order.status)){
     paymentMessage=order.status==='PAID'||paymentConfirmed?'':order.status==='CANCELLED'?'Giao dịch đã hủy.':'';
-    sessionStorage.removeItem('mss-payos-order-code');showComplete();return;
+    sessionStorage.removeItem('mss-payos-order-code');showComplete();
+    toast(order.status==='PAID'||paymentConfirmed?`Thanh toán đơn #${order.orderCode} thành công.`:order.status==='CANCELLED'||paymentStatus==='CANCELLED'?`Thanh toán đơn #${order.orderCode} đã hủy.`:`Thanh toán đơn #${order.orderCode} chưa hoàn tất.`,order.status==='PAID'||paymentConfirmed?'success':'error');return;
    }
    paymentMessage=paymentConfirmed?'PayOS đã xác nhận thanh toán. Đang cập nhật trạng thái đơn hàng…':location.pathname==='/payment/cancel'?'Thanh toán chưa hoàn tất. Đang xác minh với PayOS…':'Đang chờ PayOS xác nhận thanh toán…';
    showComplete();await new Promise(resolve=>setTimeout(resolve,2000));
   }
-  if(view==='checkout'&&step===3){paymentMessage=paymentConfirmed?'PayOS đã xác nhận thanh toán. Đơn hàng đang được cập nhật; hãy bấm “Cập nhật trạng thái”.':'Chưa xác nhận được thanh toán. Vui lòng bấm “Cập nhật trạng thái” hoặc xem lại đơn sau.';showComplete();}
+  if(view==='checkout'&&step===3){paymentMessage=paymentConfirmed?'PayOS đã xác nhận thanh toán. Đơn hàng đang được cập nhật; hãy bấm “Cập nhật trạng thái”.':'Chưa xác nhận được thanh toán. Vui lòng bấm “Cập nhật trạng thái” hoặc xem lại đơn sau.';showComplete();toast(paymentMessage,paymentConfirmed?'info':'error',7000);}
  }catch(error){notice(error.message);$('#track-dialog').showModal();await history();}
 }
 async function history(){const target=$('#track-result');target.textContent='Đang tải lịch sử đơn…';try{const data=await api('order','/api/shop/orders');target.innerHTML=data.length?'<h3 style="margin-top:24px">Đơn hàng của bạn</h3>'+data.map(o=>`<button class="history-order outline" data-code="${o.orderCode}" style="width:100%;text-align:left;margin:6px 0">#${o.orderCode} · ${money(o.totalAmount)}<br><small>${esc(stateLabel(o.status))}</small></button>`).join(''):'<p>Chưa có đơn hàng trong phiên mua sắm này.</p>';}catch(e){target.textContent=e.message;}}
 $('#track-open').onclick=()=>{$('#track-dialog').showModal();history();};
 $('#track-result').onclick=event=>{const button=event.target.closest('[data-code]');if(!button)return;$('#track-code').value=button.dataset.code;$('#track-form').requestSubmit();};
-$('#track-form').onsubmit=async event=>{event.preventDefault();const code=$('#track-code').value.trim(),target=$('#track-result'),button=event.target.querySelector('button');button.disabled=true;target.textContent='Đang tìm đơn hàng…';try{if(!/^\d+$/.test(code))throw new Error('Mã đơn hàng phải là số.');order=await api('order','/api/shop/orders/'+encodeURIComponent(code));paymentConfirmed=order.status==='PAID';paymentStatus=null;paymentMessage='';target.innerHTML=orderDetails(order);addPaymentLink(target,order);const details=document.createElement('button');details.className='outline';details.textContent='Xem và quản lý đơn hàng';details.onclick=()=>{$('#track-dialog').close();setStep(3);showComplete();};target.append(details);}catch(e){target.innerHTML=`<div class="error">${esc(e.message)}</div>`;}finally{button.disabled=false;}};
+$('#track-form').onsubmit=async event=>{event.preventDefault();const code=$('#track-code').value.trim(),target=$('#track-result'),button=event.target.querySelector('button');button.disabled=true;target.textContent='Đang tìm đơn hàng…';try{if(!/^\d+$/.test(code))throw new Error('Mã đơn hàng phải là số.');order=await api('order','/api/shop/orders/'+encodeURIComponent(code));paymentConfirmed=order.status==='PAID';paymentStatus=null;paymentMessage='';target.innerHTML=orderDetails(order);addPaymentLink(target,order);const details=document.createElement('button');details.className='outline';details.textContent='Xem và quản lý đơn hàng';details.onclick=()=>{$('#track-dialog').close();setStep(3);showComplete();};target.append(details);toast(`Đã tìm thấy đơn #${order.orderCode}: ${stateLabel(order.status)}.`,'success');}catch(e){target.innerHTML=`<div class="error" role="alert">${esc(e.message)}</div>`;toast(e.message,'error',7000);}finally{button.disabled=false;}};
 async function initialize(){
  lock(true);$('#cart-items').textContent='Đang tải giỏ hàng…';
  try{
@@ -120,8 +148,8 @@ async function initialize(){
   if(cart.some(i=>!products.some(p=>p.id===i.productId&&p.variants.some(v=>v.id===i.variantId))))throw new Error('Giỏ hàng có sản phẩm ngừng bán. Vui lòng xóa giỏ để chọn lại.');
   $('#delivery-fee').textContent=money(shippingFee);
   if(!capabilities.payosEnabled){const input=$('input[value="payos"]');input.disabled=true;input.dataset.permanentDisabled='true';$('#payos-description').textContent='Chưa khả dụng — vui lòng chọn COD';}
-  ready=true;renderCart();renderCatalog();renderStore();
- }catch(e){ready=false;cart=[];$('#cart-items').innerHTML='<div class="error">Không tải được dữ liệu cửa hàng. <button id="retry-load" class="text-button">Thử lại</button> <button id="reset-cart" class="text-button">Xóa giỏ hàng</button></div>';notice(e.message);$('#retry-load').onclick=initialize;$('#reset-cart').onclick=async()=>{try{await api('order','/api/shop/cart',{items:[]},'PUT');await initialize();}catch(error){notice(error.message);}};}finally{lock(false);}
+  ready=true;renderCart();renderCatalog();renderStore();notice('');
+ }catch(e){ready=false;cart=[];$('#cart-items').innerHTML='<div class="error">Không tải được dữ liệu cửa hàng. <button id="retry-load" class="text-button">Thử lại</button> <button id="reset-cart" class="text-button">Xóa giỏ hàng</button></div>';notice(e.message);$('#retry-load').onclick=initialize;$('#reset-cart').onclick=async()=>{try{await api('order','/api/shop/cart',{items:[]},'PUT');await initialize();if(ready)toast('Đã xóa giỏ hàng. Bạn có thể chọn sản phẩm mới.','success');}catch(error){notice(error.message);}};}finally{lock(false);}
 }
 await initialize();
 if(location.pathname==='/payment/success'||location.pathname==='/payment/cancel')await resumePaymentReturn();
@@ -169,7 +197,7 @@ function renderProductDetail(p,chosenColor,chosenSize,quantity=1){
   const next=cart.map(i=>({...i})),existing=next.find(i=>i.variantId===selected.id);
   if(existing&&existing.quantity+quantity>10){notice('Tối đa 10 sản phẩm cho mỗi biến thể.');return;}
   if(existing)existing.quantity+=quantity;else next.push({productId:p.id,variantId:selected.id,quantity});
-  if(await saveCart(next)){$('#product-dialog').close();setStep(1);}
+   if(await saveCart(next,`Đã thêm ${p.name} vào giỏ hàng.`)){$('#product-dialog').close();setStep(1);toast(`Đã thêm ${p.name} vào giỏ hàng.`,'success');}
  };
 }
 $('#store-catalog').onclick=e=>{const button=e.target.closest('[data-product]');if(!button)return;const p=product(button.dataset.product);if(p){renderProductDetail(p);$('#product-dialog').showModal();}};
