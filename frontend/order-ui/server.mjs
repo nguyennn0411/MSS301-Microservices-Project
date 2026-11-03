@@ -115,7 +115,7 @@ http.createServer(async (req, res) => {
       });
       const text = await response.text();
       if (service === 'user' && req.method === 'POST' &&
-          ['/api/v1/auth/login', '/api/v1/auth/register'].includes(path) && response.ok) {
+          ['/api/v1/auth/login', '/api/v1/auth/verify-registration'].includes(path) && response.ok) {
         const result = JSON.parse(text);
         const auth = result.data;
         if (!auth?.accessToken || auth.user?.status !== 'ACTIVE') {

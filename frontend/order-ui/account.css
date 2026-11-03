@@ -25,7 +25,9 @@
 .account-tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #dfe4d7; margin: 25px 0; }
 .account-tabs button { border: 0; background: transparent; padding: 12px; font-size: 13px; color: #819078; }
 .account-tabs button.selected { color: #303b29; border-bottom: 2px solid #303b29; }
-#account-auth form, #account-profile, #account-address-form { display: grid; gap: 15px; }
+#account-auth form, #account-profile, #account-change-password, #account-address-form { display: grid; gap: 15px; }
+#account-auth form[hidden] { display: none; }
+.account-password-title { margin-top: 32px !important; }
 #account-auth .primary { margin-top: 10px; }
 .account-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
 .account-fields .full { grid-column: 1 / -1; }

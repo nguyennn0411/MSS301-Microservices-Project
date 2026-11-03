@@ -16,7 +16,13 @@ User Service sở hữu hồ sơ khách hàng và địa chỉ giao hàng. UUID 
 | `GET` | `/api/v1/users/me` | Hồ sơ của tài khoản đang đăng nhập |
 | `PUT` | `/api/v1/users/me` | Sửa email, họ tên, điện thoại của chính mình |
 
-`POST /api/v1/auth/register` và `POST /api/v1/auth/login` trả về JWT cùng hồ sơ. Gửi `Authorization: Bearer <token>` cho các API hồ sơ và địa chỉ. Khách hàng chỉ xem được hồ sơ và địa chỉ của mình; cập nhật trạng thái và xóa user theo UUID cần quyền `ADMIN`.
+Đăng ký cần xác nhận email trước khi tạo tài khoản. `POST /api/v1/auth/register` nhận `email`, `fullName`, `phone`, `password` và gửi mã 6 số. `POST /api/v1/auth/verify-registration` nhận `email`, `code` và trả về JWT cùng hồ sơ. Mã hết hạn sau 10 phút, tối đa 5 lần nhập sai và chỉ có thể gửi lại sau 60 giây.
+
+`POST /api/v1/auth/forgot-password` nhận `email` và trả lời giống nhau dù email có tài khoản hay không. `POST /api/v1/auth/reset-password` nhận `email`, `code`, `newPassword`. `POST /api/v1/auth/change-password` nhận `currentPassword`, `newPassword` và yêu cầu JWT. Mật khẩu mới dài 8–72 ký tự.
+
+`POST /api/v1/auth/login` trả về JWT cùng hồ sơ. Gửi `Authorization: Bearer <token>` cho các API hồ sơ và địa chỉ. Khách hàng chỉ xem được hồ sơ và địa chỉ của mình; cập nhật trạng thái và xóa user theo UUID cần quyền `ADMIN`.
+
+SMTP Gmail được cấu hình trong `src/main/resources/application.yml`. Đặt `MAIL_USERNAME` và `MAIL_PASSWORD` (Gmail App Password) trong `.env` ở thư mục gốc khi chạy Docker Compose. File `.env` được Git bỏ qua. Khi chạy trực tiếp từ IDE hoặc Maven, khai báo hai biến trong môi trường của tiến trình. Nếu chưa có hai biến này, User Service vẫn khởi động nhưng không thể gửi mã qua email.
 
 Ví dụ tạo khách hàng:
 

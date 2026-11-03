@@ -49,6 +49,8 @@ Một lệnh này chạy MySQL, RabbitMQ, Eureka, Config Server, Gateway và b�
 
 Nếu sử dụng PayOS, tạo `.env` ở thư mục gốc theo `.env.example`, điền `PAYOS_ENABLED=true`, ba key và URL callback. File `.env` không được đưa vào Git hoặc Docker build. Webhook cần một URL HTTPS công khai trỏ đến `/api/payments/payos/webhook`; callback localhost chỉ phục vụ thử giao diện, không cập nhật trạng thái thanh toán từ PayOS.
 
+Để User Service gửi mã xác nhận qua Gmail, đặt `MAIL_USERNAME` và `MAIL_PASSWORD` (Gmail App Password) trong `.env` ở thư mục gốc. Docker Compose tự nạp file này và chuyển hai biến cho User Service. Nếu chạy User Service trực tiếp từ IDE hoặc Maven, đặt hai biến đó trong cấu hình chạy của tiến trình.
+
 Để chạy và test hai service bằng Maven trên máy, dùng `mvn -pl services/order-service,services/payment-service -am test`. Hướng dẫn API và luồng request ở [docs/05-order-payment-flow.md](docs/05-order-payment-flow.md).
 
 Mật khẩu MySQL local mặc định là `root`; thay `MYSQL_ROOT_PASSWORD` trong `.env` khi triển khai môi trường khác. Compose tạo các database `mss_order`, `mss_payment`, `mss_product_catalog` bằng Flyway. Không dùng đồng thời `docker-compose.infra.yml` vì hai Compose cùng mở cổng 3306 và 5672.
