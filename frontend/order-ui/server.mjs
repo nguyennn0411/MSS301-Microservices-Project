@@ -57,8 +57,14 @@ function requiresAdminApi(service, path, method) {
   if (service === 'order') return (method === 'PUT' && path === '/api/shop/content') ||
     (!path.startsWith('/api/shop/') && path !== '/actuator/health');
   if (service === 'payment') return path !== '/actuator/health' &&
-    !(method === 'GET' && path === '/api/payments/capabilities');
+    !(method === 'GET' && path === '/api/payments/capabilities') &&
+    paymentVerificationOrderCode(service, path, method) === null;
   return false;
+}
+
+function paymentVerificationOrderCode(service, path, method) {
+  if (service !== 'payment' || method !== 'POST') return null;
+  return path.match(/^\/api\/payments\/payos\/(\d{1,18})\/verify$/)?.[1] ?? null;
 }
 
 http.createServer(async (req, res) => {
@@ -94,6 +100,24 @@ http.createServer(async (req, res) => {
     const match = url.pathname.match(/^\/backend\/(order|payment|product|user)(\/.*)$/);
     if (match) {
       const [, service, path] = match;
+      const verificationOrderCode = paymentVerificationOrderCode(service, path, req.method);
+      if (verificationOrderCode !== null) {
+        const orderResponse = await fetch(
+          `http://127.0.0.1:${services.order}/api/shop/orders/${verificationOrderCode}`,
+          {
+            headers: {'X-Shop-Session': shopSession},
+            signal: AbortSignal.timeout(5000)
+          }
+        );
+        if (!orderResponse.ok) {
+          const text = await orderResponse.text();
+          res.writeHead(orderResponse.status, {
+            'Content-Type': orderResponse.headers.get('content-type') || 'application/json'
+          });
+          res.end(text);
+          return;
+        }
+      }
       if (requiresAdminApi(service, path, req.method)) {
         const user = await currentUser(stored.mss_auth);
         if (user?.status !== 'ACTIVE' || user.role !== 'ADMIN') {
