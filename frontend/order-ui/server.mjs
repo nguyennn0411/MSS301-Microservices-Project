@@ -3,8 +3,8 @@ import {readFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 
 const files = {
-  '/': 'index.html', '/app.js': 'app.js', '/account.js': 'account.js', '/store-content.js': 'store-content.js',
-  '/style.css': 'style.css', '/account.css': 'account.css',
+  '/': 'index.html', '/app.js': 'app.js', '/account.js': 'account.js', '/password-toggle.js': 'password-toggle.js', '/store-content.js': 'store-content.js',
+  '/style.css': 'style.css', '/account.css': 'account.css', '/password-toggle.css': 'password-toggle.css',
   '/admin': 'admin.html', '/admin/': 'admin.html',
   '/admin/payment': 'admin.html', '/admin/payment/': 'admin.html',
   '/admin/products': 'management.html', '/admin/products/': 'management.html',
