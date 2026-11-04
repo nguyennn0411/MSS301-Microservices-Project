@@ -1,28 +1,21 @@
 package com.ecommerce.order.client;
 
 import com.ecommerce.common.web.ApiResponse;
+import com.ecommerce.order.client.feign.ProductCatalogFeignClient;
 import com.ecommerce.order.client.dto.ProductValidationRequest;
 import com.ecommerce.order.client.dto.ProductValidationResponse;
-import com.ecommerce.order.config.ProductServiceProperties;
 import com.ecommerce.order.shop.dto.CreateOrderItemRequest;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import java.util.List;
 
 @Component
 public class ProductCatalogClient {
 
-    private final RestClient restClient;
-    private final ProductServiceProperties properties;
+    private final ProductCatalogFeignClient productCatalogFeignClient;
 
-    public ProductCatalogClient(
-            RestClient.Builder builder,
-            ProductServiceProperties properties
-    ) {
-        this.properties = properties;
-        this.restClient = builder.baseUrl(properties.baseUrl()).build();
+    public ProductCatalogClient(ProductCatalogFeignClient productCatalogFeignClient) {
+        this.productCatalogFeignClient = productCatalogFeignClient;
     }
 
     public ProductValidationResponse validate(List<CreateOrderItemRequest> items) {
@@ -35,12 +28,7 @@ public class ProductCatalogClient {
                         .toList()
         );
 
-        ApiResponse<ProductValidationResponse> response = restClient.post()
-                .uri(properties.validationPath())
-                .body(request)
-                .retrieve()
-                .body(new ParameterizedTypeReference<>() {
-                });
+        ApiResponse<ProductValidationResponse> response = productCatalogFeignClient.validate(request);
 
         if (response == null || !response.success() || response.data() == null) {
             throw new IllegalArgumentException(

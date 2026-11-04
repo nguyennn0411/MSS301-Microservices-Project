@@ -13,6 +13,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import vn.payos.model.webhooks.Webhook;
 import vn.payos.model.webhooks.WebhookData;
+import vn.payos.model.v2.paymentRequests.PaymentLink;
+import vn.payos.model.v2.paymentRequests.PaymentLinkStatus;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
@@ -65,5 +67,67 @@ class PaymentServiceTest {
         when(gateway.verifyWebhook(webhook)).thenReturn(data);when(data.getOrderCode()).thenReturn(code);when(payments.findByOrderCode(code)).thenReturn(Optional.of(payment));
         assertThat(service.handleWebhook(webhook).status()).isEqualTo(PaymentStatus.CANCELLED);
         verify(payments,never()).save(any());verifyNoInteractions(publisher);
+    }
+    @Test void verifiesPaidLinkWithPayOSBeforeMarkingPaymentPaid(){
+        var payment=PaymentEntity.create(orderId,code,userId,"Customer","buyer@example.com",new BigDecimal("10000"),"VND");
+        payment.attachPaymentLink("link-123","https://pay.payos.vn/web/link-123","qr");
+        PaymentLink link=mock(PaymentLink.class);
+        when(payments.findByOrderCode(code)).thenReturn(Optional.of(payment));
+        when(gateway.getPaymentLink(code)).thenReturn(link);
+        when(link.getOrderCode()).thenReturn(code);
+        when(link.getId()).thenReturn("link-123");
+        when(link.getAmount()).thenReturn(10000L);
+        when(link.getAmountPaid()).thenReturn(10000L);
+        when(link.getStatus()).thenReturn(PaymentLinkStatus.PAID);
+
+        assertThat(service.verifyPayOSPayment(code).status()).isEqualTo(PaymentStatus.PAID);
+        assertThat(service.verifyPayOSPayment(code).status()).isEqualTo(PaymentStatus.PAID);
+        verify(gateway,times(1)).getPaymentLink(code);
+        verify(payments,times(1)).save(payment);
+        verify(publisher,times(1)).publishSuccess(payment);
+    }
+    @Test void mismatchedPayOSLinkCannotMarkPaymentPaid(){
+        var payment=PaymentEntity.create(orderId,code,userId,"Customer","buyer@example.com",new BigDecimal("10000"),"VND");
+        payment.attachPaymentLink("expected-link","https://pay.payos.vn/web/expected-link","qr");
+        PaymentLink link=mock(PaymentLink.class);
+        when(payments.findByOrderCode(code)).thenReturn(Optional.of(payment));
+        when(gateway.getPaymentLink(code)).thenReturn(link);
+        when(link.getOrderCode()).thenReturn(code);
+        when(link.getId()).thenReturn("other-link");
+
+        assertThatThrownBy(()->service.verifyPayOSPayment(code)).isInstanceOf(IllegalStateException.class);
+        verify(payments,never()).save(any());
+        verifyNoInteractions(publisher);
+    }
+    @Test void underpaidPayOSLinkCannotMarkPaymentPaid(){
+        var payment=PaymentEntity.create(orderId,code,userId,"Customer","buyer@example.com",new BigDecimal("10000"),"VND");
+        payment.attachPaymentLink("link-123","https://pay.payos.vn/web/link-123","qr");
+        PaymentLink link=mock(PaymentLink.class);
+        when(payments.findByOrderCode(code)).thenReturn(Optional.of(payment));
+        when(gateway.getPaymentLink(code)).thenReturn(link);
+        when(link.getOrderCode()).thenReturn(code);
+        when(link.getId()).thenReturn("link-123");
+        when(link.getAmount()).thenReturn(10000L);
+        when(link.getAmountPaid()).thenReturn(5000L);
+        when(link.getStatus()).thenReturn(PaymentLinkStatus.PAID);
+
+        assertThatThrownBy(()->service.verifyPayOSPayment(code)).isInstanceOf(IllegalStateException.class);
+        verify(payments,never()).save(any());
+        verifyNoInteractions(publisher);
+    }
+    @Test void cancelledPayOSLinkMarksPaymentCancelled(){
+        var payment=PaymentEntity.create(orderId,code,userId,"Customer","buyer@example.com",new BigDecimal("10000"),"VND");
+        payment.attachPaymentLink("link-123","https://pay.payos.vn/web/link-123","qr");
+        PaymentLink link=mock(PaymentLink.class);
+        when(payments.findByOrderCode(code)).thenReturn(Optional.of(payment));
+        when(gateway.getPaymentLink(code)).thenReturn(link);
+        when(link.getOrderCode()).thenReturn(code);
+        when(link.getId()).thenReturn("link-123");
+        when(link.getAmount()).thenReturn(10000L);
+        when(link.getStatus()).thenReturn(PaymentLinkStatus.CANCELLED);
+
+        assertThat(service.verifyPayOSPayment(code).status()).isEqualTo(PaymentStatus.CANCELLED);
+        verify(payments).save(payment);
+        verify(publisher).publishCancelled(payment);
     }
 }

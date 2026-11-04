@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import vn.payos.PayOS;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.v2.paymentRequests.PaymentLink;
 import vn.payos.model.webhooks.Webhook;
 import vn.payos.model.webhooks.WebhookData;
 
@@ -40,6 +41,10 @@ public class PayOSGateway {
 
     public void cancelPaymentLink(Long orderCode, String reason) {
         client().paymentRequests().cancel(orderCode, reason);
+    }
+
+    public PaymentLink getPaymentLink(Long orderCode) {
+        return client().paymentRequests().get(orderCode);
     }
 
     public WebhookData verifyWebhook(Webhook webhook) {

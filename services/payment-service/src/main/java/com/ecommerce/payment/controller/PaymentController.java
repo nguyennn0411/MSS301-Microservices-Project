@@ -90,4 +90,11 @@ public class PaymentController {
                 paymentService.getByOrderCode(orderCode)
         );
     }
+
+    @PostMapping("/payos/{orderCode}/verify")
+    public ApiResponse<PaymentResponse> verifyPayOSPayment(
+            @PathVariable("orderCode") Long orderCode
+    ) {
+        return ApiResponse.ok(paymentService.verifyPayOSPayment(orderCode));
+    }
 }

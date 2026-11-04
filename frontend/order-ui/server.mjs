@@ -17,6 +17,7 @@ const files = {
   '/payment/success': 'index.html', '/payment/cancel': 'index.html'
 };
 const services = {order: 8084, payment: 8085, product: 8082, user: 8081};
+const port = Number(process.env.PORT || 5173);
 const adminAssets = new Set(['/admin.js', '/admin.css', '/management.js', '/management.css', '/content.js']);
 
 function cookies(req) {
@@ -56,8 +57,14 @@ function requiresAdminApi(service, path, method) {
   if (service === 'order') return (method === 'PUT' && path === '/api/shop/content') ||
     (!path.startsWith('/api/shop/') && path !== '/actuator/health');
   if (service === 'payment') return path !== '/actuator/health' &&
-    !(method === 'GET' && path === '/api/payments/capabilities');
+    !(method === 'GET' && path === '/api/payments/capabilities') &&
+    paymentVerificationOrderCode(service, path, method) === null;
   return false;
+}
+
+function paymentVerificationOrderCode(service, path, method) {
+  if (service !== 'payment' || method !== 'POST') return null;
+  return path.match(/^\/api\/payments\/payos\/(\d{1,18})\/verify$/)?.[1] ?? null;
 }
 
 http.createServer(async (req, res) => {
@@ -65,11 +72,12 @@ http.createServer(async (req, res) => {
   const stored = cookies(req);
   const shopSession = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(stored.mss_session || '')
     ? stored.mss_session : randomUUID();
-  if (shopSession !== stored.mss_session) appendCookie(res,
+  const isPaymentReturn = url.pathname === '/payment/success' || url.pathname === '/payment/cancel';
+  if (shopSession !== stored.mss_session && !isPaymentReturn) appendCookie(res,
     `mss_session=${shopSession}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000`);
   res.setHeader('Cache-Control', 'no-store');
 
-  const sameOrigin = !req.headers.origin || ['http://localhost:5173', 'http://127.0.0.1:5173'].includes(req.headers.origin);
+  const sameOrigin = !req.headers.origin || [`http://localhost:${port}`, `http://127.0.0.1:${port}`].includes(req.headers.origin);
   if (!['GET', 'HEAD'].includes(req.method) && !sameOrigin) {
     json(res, 403, {message: 'Yêu cầu không được phép.'});
     return;
@@ -92,6 +100,24 @@ http.createServer(async (req, res) => {
     const match = url.pathname.match(/^\/backend\/(order|payment|product|user)(\/.*)$/);
     if (match) {
       const [, service, path] = match;
+      const verificationOrderCode = paymentVerificationOrderCode(service, path, req.method);
+      if (verificationOrderCode !== null) {
+        const orderResponse = await fetch(
+          `http://127.0.0.1:${services.order}/api/shop/orders/${verificationOrderCode}`,
+          {
+            headers: {'X-Shop-Session': shopSession},
+            signal: AbortSignal.timeout(5000)
+          }
+        );
+        if (!orderResponse.ok) {
+          const text = await orderResponse.text();
+          res.writeHead(orderResponse.status, {
+            'Content-Type': orderResponse.headers.get('content-type') || 'application/json'
+          });
+          res.end(text);
+          return;
+        }
+      }
       if (requiresAdminApi(service, path, req.method)) {
         const user = await currentUser(stored.mss_auth);
         if (user?.status !== 'ACTIVE' || user.role !== 'ADMIN') {
@@ -150,6 +176,6 @@ http.createServer(async (req, res) => {
     });
     res.end(await readFile(new URL(file, import.meta.url)));
   } catch {
-    json(res, 502, {message: 'Không kết nối được dịch vụ. Vui lòng thử lại sau.'});
+    json(res, 502, {message: 'Không kết nối được dịch vụ. Vui lòng thử lại sau; không đặt lại nếu chưa kiểm tra lịch sử đơn.'});
   }
-}).listen(5173, '127.0.0.1', () => console.log('MSS Studio: http://localhost:5173'));
+}).listen(port, '127.0.0.1', () => console.log(`MSS Studio: http://localhost:${port}`));
