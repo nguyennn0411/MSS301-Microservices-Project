@@ -4,7 +4,11 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character =>
 })[character]);
 const friendlyErrors = {
   'Invalid email or password': 'Email hoặc mật khẩu chưa đúng.',
-  'Email is already registered': 'Email này đã được đăng ký.'
+  'Email is already registered': 'Email này đã được đăng ký.',
+  'Invalid or expired verification code': 'Mã xác nhận không đúng, đã hết hạn hoặc đã nhập sai quá nhiều lần.',
+  'Please wait 60 seconds before requesting another code': 'Vui lòng đợi 60 giây trước khi xin mã mới.',
+  'Current password is incorrect': 'Mật khẩu hiện tại không đúng.',
+  'Could not send verification email. Please try again later': 'Không gửi được email. Vui lòng kiểm tra cấu hình gửi thư hoặc thử lại sau.'
 };
 const dialog = $('#account-dialog');
 let user = null;
@@ -125,6 +129,15 @@ function editAddress(address = null) {
 }
 
 export function initAccount({onAddressSelect}) {
+  const authForms = ['login', 'register', 'verify', 'forgot', 'reset'];
+  const showAuthForm = name => {
+    for (const form of authForms) $(`#account-${form}`).hidden = form !== name;
+    document.querySelectorAll('[data-auth-tab]').forEach(tab =>
+      tab.classList.toggle('selected', tab.dataset.authTab === name ||
+        (name === 'verify' && tab.dataset.authTab === 'register') ||
+        (['forgot', 'reset'].includes(name) && tab.dataset.authTab === 'login')));
+    showMessage('');
+  };
   const open = () => {
     showMessage('');
     dialog.showModal();
@@ -132,37 +145,91 @@ export function initAccount({onAddressSelect}) {
   };
   $('#account-open').onclick = open;
   $('#saved-address-open').onclick = open;
-  $('#account-logout').onclick = () => withLoading(() => signOut());
+  $('#account-logout').onclick = () => withLoading(async () => {
+    await signOut();
+    showAuthForm('login');
+  });
   $('#account-add-address').onclick = () => editAddress();
   $('#account-cancel-address').onclick = () => { $('#account-address-form').hidden = true; };
 
-  document.querySelectorAll('[data-auth-tab]').forEach(button => button.onclick = () => {
-    const register = button.dataset.authTab === 'register';
-    $('#account-login').hidden = register;
-    $('#account-register').hidden = !register;
-    document.querySelectorAll('[data-auth-tab]').forEach(tab => tab.classList.toggle('selected', tab === button));
-    showMessage('');
-  });
+  document.querySelectorAll('[data-auth-tab]').forEach(button => button.onclick = () => showAuthForm(button.dataset.authTab));
+  $('#account-forgot-open').onclick = () => {
+    $('#account-forgot').elements.email.value = $('#account-login').elements.email.value;
+    showAuthForm('forgot');
+  };
+  $('#account-forgot-back').onclick = () => showAuthForm('login');
+  $('#account-reset-back').onclick = () => showAuthForm('forgot');
+  $('#account-register-back').onclick = () => showAuthForm('register');
 
-  for (const [formId, path] of [['account-login', '/api/v1/auth/login'], ['account-register', '/api/v1/auth/register']]) {
-    $(`#${formId}`).onsubmit = event => {
-      event.preventDefault();
-      const form = event.currentTarget;
-      const data = Object.fromEntries(new FormData(form));
-      withLoading(async () => {
-        const result = await request(path, {method: 'POST', body: data, anonymous: true});
-        user = result.user;
-        form.reset();
-        render();
-        if (user.role === 'ADMIN') {
-          window.location.assign('/admin');
-          return;
-        }
-        await refresh();
-        showMessage('Tài khoản đã sẵn sàng. Bạn có thể chọn hoặc thêm địa chỉ giao hàng.');
-      });
-    };
-  }
+  const completeLogin = async result => {
+    user = result.user;
+    render();
+    if (user.role === 'ADMIN') { window.location.assign('/admin'); return; }
+    await refresh();
+    showMessage('Tài khoản đã sẵn sàng. Bạn có thể chọn hoặc thêm địa chỉ giao hàng.');
+  };
+  $('#account-login').onsubmit = event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    withLoading(async () => {
+      const result = await request('/api/v1/auth/login', {method: 'POST', body: Object.fromEntries(new FormData(form)), anonymous: true});
+      form.reset();
+      await completeLogin(result);
+    });
+  };
+  $('#account-register').onsubmit = event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = Object.fromEntries(new FormData(form));
+    withLoading(async () => {
+      await request('/api/v1/auth/register', {method: 'POST', body: data, anonymous: true});
+      $('#account-verify').elements.email.value = data.email;
+      showAuthForm('verify');
+      showMessage('Đã gửi mã xác nhận. Vui lòng kiểm tra email.');
+    });
+  };
+  $('#account-verify').onsubmit = event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    withLoading(async () => {
+      const result = await request('/api/v1/auth/verify-registration', {method: 'POST', body: Object.fromEntries(new FormData(form)), anonymous: true});
+      form.reset();
+      $('#account-register').reset();
+      await completeLogin(result);
+    });
+  };
+  $('#account-forgot').onsubmit = event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = Object.fromEntries(new FormData(form));
+    withLoading(async () => {
+      await request('/api/v1/auth/forgot-password', {method: 'POST', body: data, anonymous: true});
+      $('#account-reset').elements.email.value = data.email;
+      showAuthForm('reset');
+      showMessage('Nếu email có tài khoản, mã đặt lại mật khẩu đã được gửi.');
+    });
+  };
+  $('#account-reset').onsubmit = event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    withLoading(async () => {
+      await request('/api/v1/auth/reset-password', {method: 'POST', body: Object.fromEntries(new FormData(form)), anonymous: true});
+      $('#account-login').elements.email.value = form.elements.email.value;
+      form.reset();
+      showAuthForm('login');
+      showMessage('Đã đặt lại mật khẩu. Vui lòng đăng nhập.');
+    });
+  };
+
+  $('#account-change-password').onsubmit = event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    withLoading(async () => {
+      await request('/api/v1/auth/change-password', {method: 'POST', body: Object.fromEntries(new FormData(form))});
+      form.reset();
+      showMessage('Đã đổi mật khẩu.');
+    });
+  };
 
   $('#account-profile').onsubmit = event => {
     event.preventDefault();
