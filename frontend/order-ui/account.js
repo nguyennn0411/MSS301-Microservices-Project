@@ -1,3 +1,5 @@
+import {initPasswordToggles} from './password-toggle.js';
+
 const $ = selector => document.querySelector(selector);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -129,6 +131,7 @@ function editAddress(address = null) {
 }
 
 export function initAccount({onAddressSelect}) {
+  initPasswordToggles(dialog);
   const authForms = ['login', 'register', 'verify', 'forgot', 'reset'];
   const showAuthForm = name => {
     for (const form of authForms) $(`#account-${form}`).hidden = form !== name;

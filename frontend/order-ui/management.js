@@ -1,4 +1,7 @@
+import {initPasswordToggles} from './password-toggle.js';
+
 const $ = selector => document.querySelector(selector);
+initPasswordToggles(document.querySelector('#user-form'));
 const section = location.pathname.replace(/\/$/, '') === '/admin/users' ? 'users' : 'products';
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const money = value => new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND'}).format(Number(value) || 0);
